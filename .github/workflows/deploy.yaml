@@ -26,6 +26,6 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
-            cd /var/www/roots/roots-frontend
+            cd /var/www/sajib/projects/rootsbeyond/clientside
             git pull origin main
             docker compose up -d --build

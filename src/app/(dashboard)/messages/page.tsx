@@ -86,6 +86,11 @@ export default function WhatsAppInbox() {
   const conversations = allConvsData?.data || [];
   const activeConversation = singleConvData?.data || null;
 
+  const displayedMessages = useMemo(() => {
+    const messages: Message[] = activeConversation?.messages || [];
+    return showSystemOnly ? messages.filter((msg: Message) => msg.isSystemMessage) : messages;
+  }, [activeConversation, showSystemOnly]);
+
   // Auto-select first conversation
   useEffect(() => {
     if (conversations.length > 0 && !selectedPhone) {
@@ -488,8 +493,12 @@ export default function WhatsAppInbox() {
                 <div className="flex items-center justify-center h-full text-gray-500 text-lg">
                   No messages found
                 </div>
+              ) : displayedMessages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-gray-500 text-lg">
+                  No system messages found
+                </div>
               ) : (
-                groupMessagesByDate(activeConversation.messages).map((group) => (
+                groupMessagesByDate(displayedMessages).map((group) => (
                   <div key={group.date}>
                     <div className="flex items-center justify-center my-6">
                       <span className="bg-white text-sm text-gray-600 px-4 py-1.5 rounded-full shadow-sm border border-gray-200">

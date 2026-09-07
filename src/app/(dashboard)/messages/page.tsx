@@ -2,6 +2,7 @@
 
 import { io } from "socket.io-client";
 import {
+  messageApi,
   useGetAllConversationsQuery,
   useLazyGetConversationByPhoneQuery,
   useSendOutboundMessageMutation,
@@ -13,7 +14,8 @@ import {
   setCustomers,
   selectCustomers,
 } from "@/redux/slices/customers";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
+import { useAppDispatch } from "@/redux/hooks";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Clock, Check, CheckCheck, AlertTriangle, MoreVertical, Trash2, X } from "lucide-react";
 import { FaEye, FaPaperPlane } from "react-icons/fa6";
@@ -28,6 +30,7 @@ interface Message {
   timestamp: string;
   isSystemMessage?: boolean;
   messageStatus?: 'queued' | 'sent' | 'delivered' | 'read' | 'undelivered' | 'failed';
+  twilioMessageSid?: string;
 }
 
 interface Conversation {
@@ -52,7 +55,7 @@ export default function WhatsAppInbox() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const customers = useSelector(selectCustomers);
 
   const {
@@ -136,14 +139,30 @@ export default function WhatsAppInbox() {
     });
 
     // Delivery/read status updates (sent/delivered/read/failed) arrive
-    // separately from new-message events — without this, an already-open
-    // conversation only ever picked up a status change by switching away
-    // and back (which forces a fresh fetch).
+    // separately from new-message events. Patch just that one message's
+    // status directly in the cache instead of refetching the whole
+    // conversation — a full refetch replaced the entire message list with
+    // a new array reference, which reset scroll position and made the
+    // thread visibly "reload" on every seen/delivered tick, unlike real
+    // WhatsApp where only the checkmark icon updates in place.
     socket.on("message-status-updated", (payload) => {
       console.log("[SOCKET] Message status updated:", payload);
 
       if (selectedPhone && payload.phoneNumber === selectedPhone) {
-        fetchConversation(selectedPhone, false);
+        dispatch(
+          messageApi.util.updateQueryData(
+            "getConversationByPhone",
+            selectedPhone,
+            (draft: any) => {
+              const msg = draft?.data?.messages?.find(
+                (m: Message) => m.twilioMessageSid === payload.messageSid
+              );
+              if (msg) {
+                msg.messageStatus = payload.status;
+              }
+            }
+          )
+        );
       }
     });
 
@@ -154,7 +173,7 @@ export default function WhatsAppInbox() {
     return () => {
       socket.disconnect();
     };
-  }, [refetchAllConversations, selectedPhone, fetchConversation]);
+  }, [refetchAllConversations, selectedPhone, fetchConversation, dispatch]);
 
   // Fetch messages when phone is selected
   useEffect(() => {
@@ -163,10 +182,25 @@ export default function WhatsAppInbox() {
     }
   }, [selectedPhone, fetchConversation]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom — only when a message is actually added (a new
+  // send/receive) or when switching to a different conversation, never on
+  // a status-only update. An in-place status patch still produces a new
+  // `messages` array reference (immer), so scrolling on every array change
+  // would jump the thread around every time a checkmark ticks over.
+  const prevMessageCountRef = useRef(0);
+  const prevPhoneRef = useRef<string | null>(null);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeConversation?.messages, forceRenderKey]);
+    const currentCount = displayedMessages.length;
+    const phoneChanged = prevPhoneRef.current !== selectedPhone;
+    const messageAdded = !phoneChanged && currentCount > prevMessageCountRef.current;
+
+    if (phoneChanged || messageAdded) {
+      messagesEndRef.current?.scrollIntoView({ behavior: phoneChanged ? "auto" : "smooth" });
+    }
+
+    prevMessageCountRef.current = currentCount;
+    prevPhoneRef.current = selectedPhone;
+  }, [displayedMessages.length, selectedPhone]);
 
   const getDisplayName = (phone: string) => {
     const normalizedPhone = phone.replace(/\D/g, "");

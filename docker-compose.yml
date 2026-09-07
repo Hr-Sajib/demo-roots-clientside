@@ -1,0 +1,29 @@
+
+services:
+  frontend:
+    container_name: roots-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_URL=https://rootsapi.supplypro.us/api/v1
+        - NEXT_PUBLIC_CROSS_SYSTEM_URL=https://api.supplypro.us/api/v1
+    restart: unless-stopped
+    networks:
+      - roots-net
+    # No ports: → internal only (NPM will proxy)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'     # prevent CPU spikes
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3500"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  roots-net:
+    external: true

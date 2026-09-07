@@ -1,17 +1,20 @@
 
 services:
   frontend:
-    container_name: roots-frontend
+    container_name: rootsbeyond-demo-frontend
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_URL=https://rootsapi.supplypro.us/api/v1
-        - NEXT_PUBLIC_CROSS_SYSTEM_URL=https://api.supplypro.us/api/v1
+        - NEXT_PUBLIC_URL=https://rootsbeyond-api.sajibofficial.me/api/v1
+        # Cross-system (Arbora) registration is disabled in this demo build
+        # (see src/lib/crossSystemRegister.ts) — intentionally left unset so
+        # this build never points at the live production Arbora API.
+        - NEXT_PUBLIC_CROSS_SYSTEM_URL=
     restart: unless-stopped
     networks:
-      - roots-net
-    # No ports: → internal only (NPM will proxy)
+      - sajib-net
+    # No ports: → internal only (Caddy will proxy)
     deploy:
       resources:
         limits:
@@ -25,5 +28,5 @@ services:
       start_period: 30s
 
 networks:
-  roots-net:
+  sajib-net:
     external: true

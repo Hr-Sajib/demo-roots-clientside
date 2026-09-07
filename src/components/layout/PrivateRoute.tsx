@@ -39,10 +39,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const role = Cookies.get("role")?.toLowerCase();
   const userData = useCurrentUser();
 
-  // While the persisted user hasn't rehydrated, hold the screen on a
-  // loading skeleton — flashing a 403 here causes an ugly "Access
-  // Denied → reload → page" cycle for sales users on hard refresh.
-  const userReady = Boolean(token) && (isAdminOrManager(userData) || userData !== null);
+  const roleIsAdminOrManager = role === "admin" || role === "manager";
 
   const [state, setState] = useState<
     "checking" | "allowed" | "redirecting"
@@ -58,31 +55,48 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    // 2) Wait for persisted user to hydrate before deciding.
-    if (!userReady) return;
+    // 2) Stale/invalid session: a token cookie exists but neither the
+    //    role cookie nor the persisted user has hydrated. This happens
+    //    when a `localhost` token cookie leaks across ports (cookies are
+    //    host-scoped, not port-scoped) from another app on localhost.
+    //    Clear it and bounce to login instead of spinning forever on
+    //    "Checking access…".
+    if (!role && !userData) {
+      Cookies.remove("token");
+      Cookies.remove("role");
+      setState("redirecting");
+      const login = new URL("/login", window.location.origin);
+      if (pathname) login.searchParams.set("next", pathname);
+      router.replace(login.pathname + login.search);
+      return;
+    }
 
-    // 3) Resolve the pathname's required allowance (or null for
-    //    non-gated paths like /user-management).
+    // 3) Admin/manager bypass every allowance check. Trust the role
+    //    cookie here so the gate never blocks waiting for the persisted
+    //    user object to rehydrate.
+    if (roleIsAdminOrManager || isAdminOrManager(userData)) {
+      setState("allowed");
+      return;
+    }
+
+    // 4) Non-admin/manager: wait for the persisted user to hydrate so we
+    //    can check the pathname's `*See` allowance.
+    if (!userData) return;
+
     const requiredKey = pathnameToAllowance(pathname ?? "");
-    const allowed = isAdminOrManager(userData) || requiredKey === null
+    const allowed = requiredKey === null
       ? true
       : userData?.allowances?.[requiredKey] === true;
 
     if (!allowed) {
       setState("redirecting");
-      // Pick the first allowed sidebar entry. The (dashboard) layout
-      // renders the same sidebar, so the redirect lands on a page the
-      // user can actually see.
-      const firstAllowed =
-        userData && !isAdminOrManager(userData)
-          ? findFirstAllowedRoute(userData.allowances)
-          : "/dashboard";
+      const firstAllowed = findFirstAllowedRoute(userData.allowances);
       router.replace(firstAllowed ?? "/login");
       return;
     }
 
     setState("allowed");
-  }, [token, role, userReady, userData, pathname, searchParams, router]);
+  }, [token, role, userData, pathname, searchParams, router]);
 
   if (state !== "allowed") {
     return <Loading title="Checking access…" />;

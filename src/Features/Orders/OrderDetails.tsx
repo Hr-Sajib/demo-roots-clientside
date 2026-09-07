@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch, apiFetchWithHeaders } from "@/lib/apiFetch";
@@ -70,6 +71,12 @@ const OrderDetails = ({ id }: { id: string }) => {
   const [quantity, setQuantity] = useState("");
   const [discount, setDiscount] = useState("0");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const productSearchFieldRef = useRef<HTMLDivElement>(null);
+  const [productDropdownPos, setProductDropdownPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
   const [creditAmount, setCreditAmount] = useState("");
   const [quantityError, setQuantityError] = useState("");
   const [returnedProducts, setReturnedProducts] = useState<
@@ -120,6 +127,33 @@ const OrderDetails = ({ id }: { id: string }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Product search dropdown is portaled to document.body (see render below)
+  // so it isn't clipped by the "Add Additional Product" modal's
+  // overflow-y-auto body — track the search field's screen position while
+  // the dropdown is open so the portal can be positioned under it.
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+
+    const updatePosition = () => {
+      const rect = productSearchFieldRef.current?.getBoundingClientRect();
+      if (rect) {
+        setProductDropdownPos({
+          top: rect.bottom,
+          left: rect.left,
+          width: rect.width,
+        });
+      }
+    };
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [isDropdownOpen]);
 
   // Validate quantity when selected product or quantity changes
   useEffect(() => {
@@ -1332,7 +1366,7 @@ const OrderDetails = ({ id }: { id: string }) => {
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {/* Product Search */}
-                <div className="relative">
+                <div className="relative" ref={productSearchFieldRef}>
                   <label
                     htmlFor="productSearch"
                     className="block text-sm font-medium text-gray-700 mb-2"
@@ -1352,8 +1386,18 @@ const OrderDetails = ({ id }: { id: string }) => {
                   />
                   {isDropdownOpen &&
                     productSearch &&
-                    filteredAvailableProducts.length > 0 && (
-                      <div className="absolute z-10 w-full max-h-60 overflow-y-auto bg-white border rounded-md shadow-lg mt-1">
+                    filteredAvailableProducts.length > 0 &&
+                    productDropdownPos &&
+                    createPortal(
+                      <div
+                        style={{
+                          position: "fixed",
+                          top: productDropdownPos.top,
+                          left: productDropdownPos.left,
+                          width: productDropdownPos.width,
+                        }}
+                        className="z-[100] max-h-60 overflow-y-auto bg-white border rounded-md shadow-lg mt-1"
+                      >
                         {filteredAvailableProducts.map((product: any) => {
                           const stockAvailable = product.quantity || 0;
                           const isOutOfStock = stockAvailable === 0;
@@ -1443,14 +1487,26 @@ const OrderDetails = ({ id }: { id: string }) => {
                             </div>
                           );
                         })}
-                      </div>
+                      </div>,
+                      document.body,
                     )}
                   {isDropdownOpen &&
                     productSearch &&
-                    filteredAvailableProducts.length === 0 && (
-                      <div className="absolute z-10 w-full bg-white border rounded-md shadow-lg mt-1 p-4 text-center text-gray-500">
+                    filteredAvailableProducts.length === 0 &&
+                    productDropdownPos &&
+                    createPortal(
+                      <div
+                        style={{
+                          position: "fixed",
+                          top: productDropdownPos.top,
+                          left: productDropdownPos.left,
+                          width: productDropdownPos.width,
+                        }}
+                        className="z-[100] bg-white border rounded-md shadow-lg mt-1 p-4 text-center text-gray-500"
+                      >
                         No products found matching "{productSearch}"
-                      </div>
+                      </div>,
+                      document.body,
                     )}
                 </div>
 

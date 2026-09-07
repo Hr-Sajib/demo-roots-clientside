@@ -18,7 +18,7 @@ services:
           cpus: '1.0'     # prevent CPU spikes
           memory: 2G
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3500"]
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3003"]
       interval: 30s
       timeout: 10s
       retries: 3

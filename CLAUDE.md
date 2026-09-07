@@ -9,13 +9,13 @@ This repo is one of two nearly-identical admin dashboards: **roots-pack** (Roots
 ## Commands
 
 ```bash
-npm run dev     # next dev -p 3500 -H 0.0.0.0
+npm run dev     # next dev -p 3003 -H 0.0.0.0
 npm run build   # next build
-npm start        # next start -p 3500 -H 0.0.0.0
+npm start        # next start -p 3003 -H 0.0.0.0
 npm run lint     # eslint
 ```
 
-No test runner is configured. Dev server runs on port **3500** (not the Next.js default 3000) — keep that in mind when checking `NEXT_PUBLIC_URL`/CORS allow-lists on the backend.
+No test runner is configured. Dev server runs on port **3003** (not the Next.js default 3000) — keep that in mind when checking `NEXT_PUBLIC_URL`/CORS allow-lists on the backend.
 
 ## Architecture
 

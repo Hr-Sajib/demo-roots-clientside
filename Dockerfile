@@ -31,10 +31,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./
 # Switch to non-root user
 USER nextjs
 
-EXPOSE 3500
+EXPOSE 3003
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget --quiet --spider http://127.0.0.1:3500 || exit 1
+  CMD wget --quiet --spider http://127.0.0.1:3003 || exit 1
 
 CMD ["npm", "start"]

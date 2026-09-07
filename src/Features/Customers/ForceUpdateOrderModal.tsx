@@ -78,7 +78,16 @@ export default function ForceUpdateOrderModal({
     try {
       const result = await updateOrder(updatedData).unwrap();
       if (result.success) {
-        toast.success("Payable adjustment applied successfully!");
+        // updateOrder invalidates a wide set of RTK Query cache tags
+        // (Orders, Dashboard, Chart, Products, SalesReport, ...), which
+        // fires a burst of simultaneous refetches/re-renders right as this
+        // resolves. That burst can win the race against react-hot-toast's
+        // own render and swallow the toast entirely. Deferring past the
+        // current task lets the burst settle first so the toast reliably
+        // mounts afterward.
+        setTimeout(() => {
+          toast.success("Payable adjustment applied successfully!");
+        }, 0);
         onClose();
       }
     } catch (error: any) {

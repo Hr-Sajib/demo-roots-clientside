@@ -126,13 +126,25 @@ export default function WhatsAppInbox() {
       refetchAllConversations();
 
       // If the message is from the currently open conversation, refresh it
-      if (selectedPhone && payload.from === selectedPhone) {
+      if (selectedPhone && payload.phoneNumber === selectedPhone) {
         fetchConversation(selectedPhone, false);
         setForceRenderKey((prev) => prev + 1);
       }
 
       // Force re-render to move sender to top
       setForceRenderKey((prev) => prev + 1);
+    });
+
+    // Delivery/read status updates (sent/delivered/read/failed) arrive
+    // separately from new-message events — without this, an already-open
+    // conversation only ever picked up a status change by switching away
+    // and back (which forces a fresh fetch).
+    socket.on("message-status-updated", (payload) => {
+      console.log("[SOCKET] Message status updated:", payload);
+
+      if (selectedPhone && payload.phoneNumber === selectedPhone) {
+        fetchConversation(selectedPhone, false);
+      }
     });
 
     socket.on("disconnect", () => {

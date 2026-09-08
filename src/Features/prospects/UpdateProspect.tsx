@@ -76,25 +76,10 @@ interface FormData {
   competitorStatement: string;
 }
 
-// Utility function to format phone numbers
+// Phone numbers are stored/displayed as plain digits only — no
+// parentheses/dashes formatting.
 const formatPhoneNumber = (value: string): string => {
-  // Remove all non-digits
-  const digits = value.replace(/\D/g, '');
-  
-  // If less than 10 digits, return as is (partial input)
-  if (digits.length < 10) {
-    return digits;
-  }
-  
-  // Format to (XXX)XXX-XXXX
-  if (digits.length >= 10) {
-    const areaCode = digits.slice(0, 3);
-    const prefix = digits.slice(3, 6);
-    const lineNumber = digits.slice(6, 10);
-    return `(${areaCode})${prefix}-${lineNumber}`;
-  }
-  
-  return digits;
+  return value.replace(/\D/g, '').slice(0, 10);
 };
 
 export default function UpdateProspectPage({
@@ -387,13 +372,13 @@ export default function UpdateProspectPage({
 
     if (!formData.storeName.trim())
       errors.storeName = "Store name is required.";
-    if (!formData.storePhone.match(/^\(\d{3}\)\d{3}-\d{4}$/)) {
-      errors.storePhone = "Phone number must be in format (XXX)XXX-XXXX.";
+    if (formData.storePhone.replace(/\D/g, "").length !== 10) {
+      errors.storePhone = "Phone number must be 10 digits.";
     }
     if (!formData.storePersonName.trim())
       errors.storePersonName = "Customer name is required.";
-    if (!formData.storePersonPhone.match(/^\(\d{3}\)\d{3}-\d{4}$/))
-      errors.storePersonPhone = "Phone number must be in format (XXX)XXX-XXXX.";
+    if (formData.storePersonPhone.replace(/\D/g, "").length !== 10)
+      errors.storePersonPhone = "Phone number must be 10 digits.";
     if (!formData.shippingAddress.trim())
       errors.shippingAddress = "Shipping address is required.";
     if (!formData.shippingCity.trim())
@@ -539,7 +524,7 @@ export default function UpdateProspectPage({
               type="tel"
               value={formData.storePhone}
               onChange={handleInputChange}
-              placeholder="(XXX)XXX-XXXX"
+              placeholder="1234567890"
               className="w-full"
             />
             {validationErrors.storePhone && (
@@ -575,7 +560,7 @@ export default function UpdateProspectPage({
               type="tel"
               value={formData.storePersonPhone}
               onChange={handleInputChange}
-              placeholder="(XXX)XXX-XXXX"
+              placeholder="1234567890"
               className="w-full"
             />
             {validationErrors.storePersonPhone && (
@@ -1021,7 +1006,7 @@ export default function UpdateProspectPage({
               </div>
 
               {
-                newQuote.itemName ? 
+                newQuote.itemName ?
                 <p className="w-full border-2 p-2 border-green-500 rounded-lg ">{newQuote.itemName}</p>
                 : null
               }

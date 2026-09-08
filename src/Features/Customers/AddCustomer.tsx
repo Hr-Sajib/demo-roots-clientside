@@ -492,16 +492,10 @@ export default function AddCustomer(): React.ReactElement {
                 value={formData.storePhone}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
-                  const formatted =
-                    raw.length >= 6
-                      ? `(${raw.slice(0, 3)})${raw.slice(3, 6)}-${raw.slice(6)}`
-                      : raw.length >= 3
-                      ? `(${raw.slice(0, 3)})${raw.slice(3)}`
-                      : raw;
-                  handleInputChange({ target: { name: "storePhone", value: formatted } } as any);
+                  handleInputChange({ target: { name: "storePhone", value: raw } } as any);
                 }}
                 required
-                placeholder="(123)456-7890"
+                placeholder="1234567890"
               />
               {fieldErrors.storePhone && <p className="text-red-500 text-sm">{fieldErrors.storePhone}</p>}
             </div>
@@ -516,16 +510,10 @@ export default function AddCustomer(): React.ReactElement {
                 value={formData.storePersonPhone}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
-                  const formatted =
-                    raw.length >= 6
-                      ? `(${raw.slice(0, 3)})${raw.slice(3, 6)}-${raw.slice(6)}`
-                      : raw.length >= 3
-                      ? `(${raw.slice(0, 3)})${raw.slice(3)}`
-                      : raw;
-                  handleInputChange({ target: { name: "storePersonPhone", value: formatted } } as any);
+                  handleInputChange({ target: { name: "storePersonPhone", value: raw } } as any);
                 }}
                 required
-                placeholder="(123)456-7891"
+                placeholder="1234567891"
               />
               {fieldErrors.storePersonPhone && <p className="text-red-500 text-sm">{fieldErrors.storePersonPhone}</p>}
             </div>

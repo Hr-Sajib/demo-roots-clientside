@@ -617,7 +617,10 @@ const CustomerDetailsPage: React.FC = () => {
               placeholder: "WhatsApp Group Link",
             },
           ]}
-          onChange={(k, v) => setBasicForm((p) => ({ ...p, [k]: v }))}
+          onChange={(k, v) => {
+            const value = (k === "storePhone" || k === "cellPhone") ? v.replace(/\D/g, "").slice(0, 10) : v;
+            setBasicForm((p) => ({ ...p, [k]: value }));
+          }}
           onClose={() => setIsBasicModalOpen(false)}
           onSubmit={handleUpdateBasicInfo}
           extraContent={

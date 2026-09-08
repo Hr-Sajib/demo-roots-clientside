@@ -258,12 +258,10 @@ export default function AddProspact(): React.ReactElement {
     }));
   };
 
-  const phoneRegex = /^\(\d{3}\)\d{3}-\d{4}$/;
-
   const validatePhoneNumber = (value: string): string => {
     if (!value.trim()) return "Phone number is required.";
-    if (!phoneRegex.test(value)) {
-      return "Phone number must be in the format (XXX)XXX-XXXX.";
+    if (value.replace(/\D/g, "").length !== 10) {
+      return "Phone number must be 10 digits.";
     }
     return "";
   };
@@ -366,15 +364,9 @@ export default function AddProspact(): React.ReactElement {
                 value={formData.storePhone || ""}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
-                  const formatted =
-                    raw.length >= 6
-                      ? `(${raw.slice(0, 3)})${raw.slice(3, 6)}-${raw.slice(6)}`
-                      : raw.length >= 3
-                      ? `(${raw.slice(0, 3)})${raw.slice(3)}`
-                      : raw;
-                  handleInputChange({ target: { name: "storePhone", value: formatted } } as any);
+                  handleInputChange({ target: { name: "storePhone", value: raw } } as any);
                 }}
-                placeholder="(123)456-7890"
+                placeholder="1234567890"
                 required
               />
 
@@ -393,15 +385,9 @@ export default function AddProspact(): React.ReactElement {
                 value={formData.storePersonPhone || ""}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
-                  const formatted =
-                    raw.length >= 6
-                      ? `(${raw.slice(0, 3)})${raw.slice(3, 6)}-${raw.slice(6)}`
-                      : raw.length >= 3
-                      ? `(${raw.slice(0, 3)})${raw.slice(3)}`
-                      : raw;
-                  handleInputChange({ target: { name: "storePersonPhone", value: formatted } } as any);
+                  handleInputChange({ target: { name: "storePersonPhone", value: raw } } as any);
                 }}
-                placeholder="(123)456-7890"
+                placeholder="1234567890"
                 required
               />
 

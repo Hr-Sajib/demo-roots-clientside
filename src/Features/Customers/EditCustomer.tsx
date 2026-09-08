@@ -22,20 +22,10 @@ type FileField =
   | "ownerLegalBackImage"
   | "voidedCheckImage";
 
-// Utility function to format phone numbers
+// Phone numbers are stored/displayed as plain digits only — no
+// parentheses/dashes formatting.
 const formatPhoneNumber = (value: string, inputElement: HTMLInputElement | null): string => {
-  const digits = value.replace(/\D/g, "");
-
-  if (digits.length < 10) return digits;
-
-  if (digits.length >= 10) {
-    const areaCode = digits.slice(0, 3);
-    const prefix = digits.slice(3, 6);
-    const lineNumber = digits.slice(6, 10);
-    return `(${areaCode})${prefix}-${lineNumber}`;
-  }
-
-  return digits;
+  return value.replace(/\D/g, "").slice(0, 10);
 };
 
 // US States array for reuse
@@ -230,7 +220,7 @@ export default function EditCustomerPage() {
 
   // Update send email status for a secondary email
   const updateSendEmailStatus = (index: number, sendEmails: boolean) => {
-    setSecondaryEmails(prev => prev.map((item, i) => 
+    setSecondaryEmails(prev => prev.map((item, i) =>
       i === index ? { ...item, sendEmails } : item
     ));
   };
@@ -363,15 +353,9 @@ export default function EditCustomerPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     let formattedValue: string = value;
-    const inputElement = e.target as HTMLInputElement;
 
     if (name === "storePhone" || name === "storePersonPhone") {
-      formattedValue = formatPhoneNumber(value, inputElement);
-      const cursor = inputElement.selectionStart || 0;
-      setTimeout(() => {
-        inputElement.selectionStart = cursor;
-        inputElement.selectionEnd = cursor;
-      }, 0);
+      formattedValue = formatPhoneNumber(value, null);
     }
 
     if (name === "commissionRate") {
@@ -463,12 +447,12 @@ export default function EditCustomerPage() {
     const errors: Record<string, string> = {};
 
     if (!formData.storeName.trim()) errors.storeName = "Store name is required.";
-    if (!formData.storePhone.match(/^\(\d{3}\)\d{3}-\d{4}$/) || formData.storePhone.replace(/\D/g, "").length !== 10) {
-      errors.storePhone = "Store phone must be valid (XXX)XXX-XXXX.";
+    if (formData.storePhone.replace(/\D/g, "").length !== 10) {
+      errors.storePhone = "Store phone must be 10 digits.";
     }
     if (!formData.storePersonName.trim()) errors.storePersonName = "Authorized person name is required.";
-    if (!formData.storePersonPhone.match(/^\(\d{3}\)\d{3}-\d{4}$/) || formData.storePersonPhone.replace(/\D/g, "").length !== 10) {
-      errors.storePersonPhone = "Cell phone must be valid (XXX)XXX-XXXX.";
+    if (formData.storePersonPhone.replace(/\D/g, "").length !== 10) {
+      errors.storePersonPhone = "Cell phone must be 10 digits.";
     }
     if (!formData.storePersonEmail.match(/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/)) {
       errors.storePersonEmail = "Invalid email format.";
@@ -525,7 +509,7 @@ export default function EditCustomerPage() {
         if (key === "acceptedDeliveryDays") {
           const daysString = Array.isArray(value) ? value.join(",") : String(value);
           formDataToSend.append(key, daysString);
-        } 
+        }
         else if (key === "commissionRate") {
           if (value !== null && value !== undefined) {
             formDataToSend.append(key, String(value));
@@ -533,10 +517,10 @@ export default function EditCustomerPage() {
         }
         else if (typeof value === "boolean") {
           formDataToSend.append(key, value ? "true" : "false");
-        } 
+        }
         else if (key === "termDays") {
           formDataToSend.append(key, String(Number(value)));
-        } 
+        }
         else {
           formDataToSend.append(key, String(value));
         }
@@ -622,8 +606,8 @@ export default function EditCustomerPage() {
                 type="tel"
                 value={formData.storePhone}
                 onChange={handleChange}
-                placeholder="(XXX)XXX-XXXX"
-                maxLength={14}
+                placeholder="1234567890"
+                maxLength={10}
                 ref={storePhoneRef}
                 required
               />
@@ -640,8 +624,8 @@ export default function EditCustomerPage() {
                 type="tel"
                 value={formData.storePersonPhone}
                 onChange={handleChange}
-                placeholder="(XXX)XXX-XXXX"
-                maxLength={14}
+                placeholder="1234567890"
+                maxLength={10}
                 ref={storePersonPhoneRef}
                 required
               />
@@ -671,7 +655,7 @@ export default function EditCustomerPage() {
                   Secondary Emails
                   <span className="text-xs text-gray-500 font-normal">(Optional, max 3)</span>
                 </Label>
-                
+
                 {/* Display existing secondary emails */}
                 {secondaryEmails.length > 0 && (
                   <div className="space-y-2 mb-3">
@@ -706,7 +690,7 @@ export default function EditCustomerPage() {
                     ))}
                   </div>
                 )}
-                
+
                 {/* Input to add new secondary email */}
                 {secondaryEmails.length < 3 && (
                   <div className="space-y-2 border border-gray-200 rounded-lg p-4 bg-gray-50">
@@ -746,7 +730,7 @@ export default function EditCustomerPage() {
                     </label>
                   </div>
                 )}
-                
+
                 {validationErrors.secondaryEmails && (
                   <p className="text-red-500 text-sm">{validationErrors.secondaryEmails}</p>
                 )}
@@ -1138,8 +1122,8 @@ export default function EditCustomerPage() {
           >
             Cancel
           </Button>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={isUpdating}
             className="bg-red-700 hover:bg-red-600 text-white"
           >

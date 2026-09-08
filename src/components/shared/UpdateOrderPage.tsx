@@ -161,7 +161,7 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
     "verified" | "completed" | "cancelled"
   >((order?.orderStatus as any) || "verified");
 
-  const [deliveryDocUrl, setDeliveryDocUrl] = useState<string | null>(null);
+  const [deliveryImageUrls, setDeliveryImageUrls] = useState<string[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     null,
   );
@@ -858,9 +858,9 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
       payload.products = currentProducts;
     }
 
-    // Delivery Document
-    if (deliveryDocUrl) {
-      payload.deliveryDoc = deliveryDocUrl;
+    // Delivery Images
+    if (deliveryImageUrls.length > 0) {
+      payload.deliveryImages = deliveryImageUrls;
     }
 
     if (Object.keys(payload).length === 0) {
@@ -964,21 +964,50 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
           </div>
         </div>
 
-        {/* Delivery Document */}
+        {/* Delivery Images */}
         <div className="flex gap-4">
           <div className="flex-1">
-            <Label className="mb-2">Delivery Document</Label>
+            <Label className="mb-2">Delivery Images</Label>
             <Input
               type="file"
               accept="image/*"
+              multiple
               onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const url = await imageUpload(file);
-                  if (url) setDeliveryDocUrl(url);
+                const files = Array.from(e.target.files ?? []);
+                if (files.length === 0) return;
+                const urls = await Promise.all(files.map((file) => imageUpload(file)));
+                const uploaded = urls.filter((url): url is string => Boolean(url));
+                if (uploaded.length < files.length) {
+                  toast.error("Some images failed to upload");
                 }
+                if (uploaded.length > 0) {
+                  setDeliveryImageUrls((prev) => [...prev, ...uploaded]);
+                }
+                e.target.value = "";
               }}
             />
+            {deliveryImageUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {deliveryImageUrls.map((url, index) => (
+                  <div key={url} className="relative">
+                    <img
+                      src={url}
+                      alt={`Delivery image ${index + 1}`}
+                      className="w-16 h-16 object-cover rounded border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDeliveryImageUrls((prev) => prev.filter((u) => u !== url))
+                      }
+                      className="absolute -top-2 -right-2 bg-white rounded-full border shadow p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

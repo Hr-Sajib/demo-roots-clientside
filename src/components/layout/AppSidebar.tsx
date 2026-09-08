@@ -34,6 +34,7 @@ import { useDispatch } from "react-redux";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { clearUser } from "@/redux/slices/userSlice";
 import { isAdminOrManager, type AllowanceKey } from "@/hooks/useAllowance";
+import { useLogoutMutation } from "@/redux/api/admin";
 
 interface DecodedToken {
   email: string;
@@ -85,8 +86,17 @@ export default function AppSidebar() {
   // more ad-hoc localStorage.getItem("userData") scattered across files.
   const userData = useCurrentUser();
   const dispatch = useDispatch();
+  const [logout] = useLogoutMutation();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Revoke the refresh token server-side (Redis) before clearing local
+    // state — best-effort: a network hiccup here shouldn't trap the user
+    // unable to log out, so client-side cleanup always proceeds either way.
+    try {
+      await logout().unwrap();
+    } catch (error) {
+      console.error("Logout revoke failed:", error);
+    }
     Cookies.remove("token");
     Cookies.remove("role");
     dispatch(clearUser());

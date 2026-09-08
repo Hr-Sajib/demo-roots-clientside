@@ -260,8 +260,8 @@ export default function AddProspact(): React.ReactElement {
 
   const validatePhoneNumber = (value: string): string => {
     if (!value.trim()) return "Phone number is required.";
-    if (value.replace(/\D/g, "").length !== 10) {
-      return "Phone number must be 10 digits.";
+    if (value.replace(/\D/g, "").length > 13) {
+      return "Phone number must be at most 13 digits.";
     }
     return "";
   };
@@ -363,7 +363,7 @@ export default function AddProspact(): React.ReactElement {
                 type="tel"
                 value={formData.storePhone || ""}
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  const raw = e.target.value.replace(/\D/g, "").slice(0, 13);
                   handleInputChange({ target: { name: "storePhone", value: raw } } as any);
                 }}
                 placeholder="1234567890"
@@ -384,7 +384,7 @@ export default function AddProspact(): React.ReactElement {
                 type="tel"
                 value={formData.storePersonPhone || ""}
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  const raw = e.target.value.replace(/\D/g, "").slice(0, 13);
                   handleInputChange({ target: { name: "storePersonPhone", value: raw } } as any);
                 }}
                 placeholder="1234567890"

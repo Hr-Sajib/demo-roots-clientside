@@ -618,7 +618,7 @@ const CustomerDetailsPage: React.FC = () => {
             },
           ]}
           onChange={(k, v) => {
-            const value = (k === "storePhone" || k === "cellPhone") ? v.replace(/\D/g, "").slice(0, 10) : v;
+            const value = (k === "storePhone" || k === "cellPhone") ? v.replace(/\D/g, "").slice(0, 13) : v;
             setBasicForm((p) => ({ ...p, [k]: value }));
           }}
           onClose={() => setIsBasicModalOpen(false)}

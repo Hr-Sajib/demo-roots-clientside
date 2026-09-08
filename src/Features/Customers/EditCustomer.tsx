@@ -25,7 +25,7 @@ type FileField =
 // Phone numbers are stored/displayed as plain digits only — no
 // parentheses/dashes formatting.
 const formatPhoneNumber = (value: string, inputElement: HTMLInputElement | null): string => {
-  return value.replace(/\D/g, "").slice(0, 10);
+  return value.replace(/\D/g, "").slice(0, 13);
 };
 
 // US States array for reuse
@@ -447,12 +447,12 @@ export default function EditCustomerPage() {
     const errors: Record<string, string> = {};
 
     if (!formData.storeName.trim()) errors.storeName = "Store name is required.";
-    if (formData.storePhone.replace(/\D/g, "").length !== 10) {
-      errors.storePhone = "Store phone must be 10 digits.";
+    if (formData.storePhone.replace(/\D/g, "").length > 13) {
+      errors.storePhone = "Store phone must be at most 13 digits.";
     }
     if (!formData.storePersonName.trim()) errors.storePersonName = "Authorized person name is required.";
-    if (formData.storePersonPhone.replace(/\D/g, "").length !== 10) {
-      errors.storePersonPhone = "Cell phone must be 10 digits.";
+    if (formData.storePersonPhone.replace(/\D/g, "").length > 13) {
+      errors.storePersonPhone = "Cell phone must be at most 13 digits.";
     }
     if (!formData.storePersonEmail.match(/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/)) {
       errors.storePersonEmail = "Invalid email format.";
@@ -607,7 +607,7 @@ export default function EditCustomerPage() {
                 value={formData.storePhone}
                 onChange={handleChange}
                 placeholder="1234567890"
-                maxLength={10}
+                maxLength={13}
                 ref={storePhoneRef}
                 required
               />
@@ -625,7 +625,7 @@ export default function EditCustomerPage() {
                 value={formData.storePersonPhone}
                 onChange={handleChange}
                 placeholder="1234567890"
-                maxLength={10}
+                maxLength={13}
                 ref={storePersonPhoneRef}
                 required
               />

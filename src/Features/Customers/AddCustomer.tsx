@@ -491,7 +491,7 @@ export default function AddCustomer(): React.ReactElement {
                 type="tel"
                 value={formData.storePhone}
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  const raw = e.target.value.replace(/\D/g, "").slice(0, 13);
                   handleInputChange({ target: { name: "storePhone", value: raw } } as any);
                 }}
                 required
@@ -509,7 +509,7 @@ export default function AddCustomer(): React.ReactElement {
                 type="tel"
                 value={formData.storePersonPhone}
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  const raw = e.target.value.replace(/\D/g, "").slice(0, 13);
                   handleInputChange({ target: { name: "storePersonPhone", value: raw } } as any);
                 }}
                 required

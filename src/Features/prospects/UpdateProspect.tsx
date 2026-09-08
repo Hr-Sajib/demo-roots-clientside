@@ -79,7 +79,7 @@ interface FormData {
 // Phone numbers are stored/displayed as plain digits only — no
 // parentheses/dashes formatting.
 const formatPhoneNumber = (value: string): string => {
-  return value.replace(/\D/g, '').slice(0, 10);
+  return value.replace(/\D/g, '').slice(0, 13);
 };
 
 export default function UpdateProspectPage({
@@ -372,13 +372,13 @@ export default function UpdateProspectPage({
 
     if (!formData.storeName.trim())
       errors.storeName = "Store name is required.";
-    if (formData.storePhone.replace(/\D/g, "").length !== 10) {
-      errors.storePhone = "Phone number must be 10 digits.";
+    if (formData.storePhone.replace(/\D/g, "").length > 13) {
+      errors.storePhone = "Phone number must be at most 13 digits.";
     }
     if (!formData.storePersonName.trim())
       errors.storePersonName = "Customer name is required.";
-    if (formData.storePersonPhone.replace(/\D/g, "").length !== 10)
-      errors.storePersonPhone = "Phone number must be 10 digits.";
+    if (formData.storePersonPhone.replace(/\D/g, "").length > 13)
+      errors.storePersonPhone = "Phone number must be at most 13 digits.";
     if (!formData.shippingAddress.trim())
       errors.shippingAddress = "Shipping address is required.";
     if (!formData.shippingCity.trim())

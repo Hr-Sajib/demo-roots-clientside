@@ -8,7 +8,7 @@ import {
   useGetProductsQuery,
   useGetProductsByCategoryQuery,
 } from "@/redux/api/product";
-import { useUpdateOrderMutation } from "@/redux/api/orders";
+import { useUpdateOrderMutation, useUploadDeliveryImagesMutation } from "@/redux/api/orders";
 import {
   Calendar,
   MapPin,
@@ -40,7 +40,6 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Button } from "../ui/button";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import imageUpload from "@/lib/ImageUploader";
 
 // Types
 interface Product {
@@ -182,6 +181,7 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
   const categoryProducts = catProductsRes?.data ?? [];
 
   const [updateOrder, { isLoading: submitting }] = useUpdateOrderMutation();
+  const [uploadDeliveryImages, { isLoading: uploadingImages }] = useUploadDeliveryImagesMutation();
 
   // Helper function to get warehouse locations array from product
   const getWarehouseLocationsArray = (product: Product): WarehouseLocationInfo[] => {
@@ -972,16 +972,15 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
               type="file"
               accept="image/*"
               multiple
+              disabled={uploadingImages}
               onChange={async (e) => {
                 const files = Array.from(e.target.files ?? []);
                 if (files.length === 0) return;
-                const urls = await Promise.all(files.map((file) => imageUpload(file)));
-                const uploaded = urls.filter((url): url is string => Boolean(url));
-                if (uploaded.length < files.length) {
-                  toast.error("Some images failed to upload");
-                }
-                if (uploaded.length > 0) {
-                  setDeliveryImageUrls((prev) => [...prev, ...uploaded]);
+                try {
+                  const result = await uploadDeliveryImages(files).unwrap();
+                  setDeliveryImageUrls((prev) => [...prev, ...result.data.urls]);
+                } catch (err: any) {
+                  toast.error(err?.data?.message || "Failed to upload images");
                 }
                 e.target.value = "";
               }}

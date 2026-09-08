@@ -89,7 +89,22 @@ const orderManagementApi = baseApi.injectEndpoints({
       providesTags: (result, error, id) => [{ type: "Orders", id }],
     }),
 
-    
+
+    uploadDeliveryImages: builder.mutation<
+      { success: boolean; data: { urls: string[] } },
+      File[]
+    >({
+      query: (files) => {
+        const formData = new FormData();
+        files.forEach((file) => formData.append("images", file));
+        return {
+          url: "/order/upload-delivery-images",
+          method: "POST",
+          body: formData,
+        };
+      },
+    }),
+
     updateOrder: builder.mutation<any, UpdateOrderPayload>({
       query: ({ id, ...patch }) => ({
         url: `/order/${id}`,
@@ -185,6 +200,7 @@ export const {
   useGetOrdersQuery,
   useAddOrderMutation,
   useUpdateOrderMutation,
+  useUploadDeliveryImagesMutation,
   useDeleteOrderMutation,
   useGetProductSegmentsQuery,
   useGiteSingleOrderQuery,

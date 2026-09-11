@@ -41,6 +41,21 @@ interface Conversation {
   updatedAt: string;
 }
 
+/**
+ * Compares two phone numbers by digits alone.
+ *
+ * The socket payload carries the number in E.164 ("+8801905889771") because
+ * that is the form Twilio delivers, while conversations are stored and keyed
+ * without the plus ("8801905889771"). A strict === between the two is always
+ * false, which meant an open thread never refreshed when a message arrived —
+ * the list reloaded, but the thread itself only caught up when you switched
+ * away and back. Comparing digits makes both forms agree.
+ */
+const samePhone = (a?: string | null, b?: string | null): boolean => {
+  if (!a || !b) return false;
+  return a.replace(/\D/g, "") === b.replace(/\D/g, "");
+};
+
 export default function WhatsAppInbox() {
   // All hooks must be called before any conditional returns
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
@@ -128,9 +143,10 @@ export default function WhatsAppInbox() {
       // Refresh all conversations list
       refetchAllConversations();
 
-      // If the message is from the currently open conversation, refresh it
-      if (selectedPhone && payload.phoneNumber === selectedPhone) {
-        fetchConversation(selectedPhone, false);
+      // If the message is from the currently open conversation, refresh it.
+      // Matched on digits — the payload is E.164, the cache key is not.
+      if (samePhone(payload.phoneNumber, selectedPhone)) {
+        fetchConversation(selectedPhone as string, false);
         setForceRenderKey((prev) => prev + 1);
       }
 
@@ -148,11 +164,11 @@ export default function WhatsAppInbox() {
     socket.on("message-status-updated", (payload) => {
       console.log("[SOCKET] Message status updated:", payload);
 
-      if (selectedPhone && payload.phoneNumber === selectedPhone) {
+      if (samePhone(payload.phoneNumber, selectedPhone)) {
         dispatch(
           messageApi.util.updateQueryData(
             "getConversationByPhone",
-            selectedPhone,
+            selectedPhone as string,
             (draft: any) => {
               const msg = draft?.data?.messages?.find(
                 (m: Message) => m.twilioMessageSid === payload.messageSid

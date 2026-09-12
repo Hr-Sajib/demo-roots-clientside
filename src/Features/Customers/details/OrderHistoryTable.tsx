@@ -23,6 +23,8 @@ const OrderHistoryTable: React.FC<OrderHistoryTableProps> = ({ orders }) => {
         <thead className="bg-gray-100 text-gray-700">
           <tr>
             <th className="p-3 whitespace-nowrap">PO #</th>
+            <th className="p-3 whitespace-nowrap">Invoice #</th>
+            <th className="p-3 whitespace-nowrap">Order Status</th>
             <th className="p-3 whitespace-nowrap">Date</th>
             <th className="p-3 whitespace-nowrap">Due Date</th>
             <th className="p-3 whitespace-nowrap">Order Amount</th>
@@ -49,6 +51,27 @@ const OrderHistoryTable: React.FC<OrderHistoryTableProps> = ({ orders }) => {
                 >
                   {order.PONumber}
                 </Link>
+              </td>
+              <td className="p-3 whitespace-nowrap text-gray-700">
+                {order.invoiceNumber || "—"}
+              </td>
+              <td className="p-3 whitespace-nowrap">
+                {/* Every order appears here regardless of status, so the status
+                    has to be visible — otherwise a row that is not yet counted
+                    toward the open balance looks identical to one that is. */}
+                <span
+                  className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                    order.orderStatus === "completed"
+                      ? "bg-green-100 text-green-800"
+                      : order.orderStatus === "verified"
+                        ? "bg-blue-100 text-blue-800"
+                        : order.orderStatus === "cancelled"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {order.orderStatus || "—"}
+                </span>
               </td>
               <td className="p-3 whitespace-nowrap text-gray-700">
                 {format(new Date(order.date), "yyyy-MM-dd")}

@@ -470,7 +470,11 @@ const CustomerDetailsPage: React.FC = () => {
             title="Financial Info"
             data={{
               "Open Balance": `$${customer.openBalance?.toFixed(2) || "0.00"}`,
-              "Total Orders": customer.totalOrders || "0",
+              // "Valid" because this counts only verified and completed orders
+              // — the same set the open balance is built from. The history
+              // table below lists every order, so an unqualified "Total Orders"
+              // here would contradict the rows underneath it.
+              "Total Valid Orders": customer.totalOrders || "0",
               "Total Amount": `$${
                 customer.totalOrderAmount?.toFixed(2) || "0.00"
               }`,

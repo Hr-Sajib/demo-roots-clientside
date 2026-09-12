@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useUpdateOrderMutation } from "@/redux/api/orders";
+import { useApplyPayableAdjustmentMutation } from "@/redux/api/orders";
 import toast from "react-hot-toast";
 
 interface ForceUpdateOrderModalProps {
@@ -17,6 +17,9 @@ interface ForceUpdateOrderModalProps {
     PONumber: string;
     totalPayable: number;
     openBalance: number;
+    // The server rejects an adjustment once any money has been received, so the
+    // form needs to know before letting someone fill it in.
+    paymentAmountReceived?: number;
   } | null;
 }
 
@@ -28,7 +31,7 @@ export default function ForceUpdateOrderModal({
   const [payableAdjustment, setPayableAdjustment] = useState("");
   const [adjustmentNote, setAdjustmentNote] = useState("");
 
-  const [updateOrder, { isLoading }] = useUpdateOrderMutation();
+  const [applyPayableAdjustment, { isLoading }] = useApplyPayableAdjustmentMutation();
 
   // Disable body scroll when modal is open
   useEffect(() => {
@@ -52,8 +55,19 @@ export default function ForceUpdateOrderModal({
     }
   }, [isOpen, order]);
 
+  // Mirrors the server rule: an order with a payment against it can no longer
+  // be adjusted, because the balance the customer paid against must stay fixed.
+  // Post-payment corrections are issued as customer credit instead.
+  const hasPayment = (order?.paymentAmountReceived ?? 0) > 0.01;
+
   const handleSave = async () => {
     if (!order) return;
+    if (hasPayment) {
+      toast.error(
+        "This order already has a payment against it and can no longer be adjusted. Issue customer credit instead.",
+      );
+      return;
+    }
 
     const adjustmentValue = parseFloat(payableAdjustment);
 
@@ -72,11 +86,11 @@ export default function ForceUpdateOrderModal({
     const updatedData = {
       id: order._id,
       payableAdjustment: adjustmentValue,
-      payableAdjustmentNote: adjustmentNote.trim() ? adjustmentNote.trim() : undefined,
+      payableAdjustmentNote: adjustmentNote.trim(),
     };
 
     try {
-      const result = await updateOrder(updatedData).unwrap();
+      const result = await applyPayableAdjustment(updatedData).unwrap();
       if (result.success) {
         // updateOrder invalidates a wide set of RTK Query cache tags
         // (Orders, Dashboard, Chart, Products, SalesReport, ...), which
@@ -128,6 +142,14 @@ export default function ForceUpdateOrderModal({
 
         {/* Body */}
         <div className="p-6 space-y-5">
+          {hasPayment && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              A payment has already been recorded against this order, so its
+              payable amount can no longer be adjusted. Issue customer credit
+              instead.
+            </div>
+          )}
+
           {/* Payable Adjustment */}
           <div className="space-y-2">
             <Label htmlFor="payableAdjustment" className="text-sm font-medium">
@@ -140,6 +162,7 @@ export default function ForceUpdateOrderModal({
               value={payableAdjustment}
               onChange={(e) => setPayableAdjustment(e.target.value)}
               placeholder="e.g. 50.00 or -25.00"
+              disabled={hasPayment}
               className="text-lg"
               onWheel={(e) => (e.target as HTMLInputElement).blur()}
             />
@@ -162,6 +185,7 @@ export default function ForceUpdateOrderModal({
               required
               onChange={(e) => setAdjustmentNote(e.target.value)}
               placeholder="Reason for adjustment (e.g. damage discount, goodwill gesture, etc.)"
+              disabled={hasPayment}
               rows={4}
               className="resize-none"
             />

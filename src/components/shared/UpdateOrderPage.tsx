@@ -91,6 +91,9 @@ interface Order {
   _id: string;
   invoiceNumber: string;
   date: string;
+  // Needed to mirror the server's freeze rule: once money has been received,
+  // the order's products can no longer change.
+  paymentAmountReceived?: number;
   paymentDueDate: string;
   shippingDate: string;
   shippingCharge: number;
@@ -738,6 +741,8 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
       }),
     );
 
+    const orderHasPayment = Number(order?.paymentAmountReceived ?? 0) > 0.01;
+
     const payload: any = {};
 
     // Date fields
@@ -853,6 +858,17 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
     });
 
     const productsChanged = JSON.stringify(currentProducts) !== JSON.stringify(originalProducts);
+
+    // Mirrors the server rule: once money has been received the order's
+    // financial shape is frozen, so the basis the customer paid against is
+    // preserved. Caught here so the user is told before submitting rather than
+    // after. Other edits (dates, shipping, status) remain allowed.
+    if (productsChanged && orderHasPayment) {
+      toast.error(
+        "This order already has a payment against it, so its products can no longer be changed. Issue customer credit instead.",
+      );
+      return;
+    }
 
     if (productsChanged) {
       payload.products = currentProducts;

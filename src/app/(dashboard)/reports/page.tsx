@@ -1653,7 +1653,8 @@ const SalesReportsPage = () => {
           acc.customerIds.add(payment.storeName.toLowerCase());
         if (payment.method === "check") acc.checkTotal += Number(payment.amount) || 0;
         if (payment.method === "cash") acc.cashTotal += Number(payment.amount) || 0;
-        if (payment.method === "cc") acc.ccTotal += Number(payment.amount) || 0;
+        if (payment.method === "cc" || payment.method === "cc-manual")
+          acc.ccTotal += Number(payment.amount) || 0;
         return acc;
       },
       {
@@ -1953,7 +1954,7 @@ const SalesReportsPage = () => {
                               </button>
                             </div>
                             <div className="space-y-1 max-h-56 overflow-auto">
-                              {(["check", "cash", "cc", "donation"] as const).map(
+                              {(["check", "cash", "cc", "cc-manual", "donation"] as const).map(
                                 (method) => {
                                   const labels: Record<string, string> = {
                                     check: "Check",

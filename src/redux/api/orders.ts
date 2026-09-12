@@ -126,6 +126,29 @@ const orderManagementApi = baseApi.injectEndpoints({
         { type: "Customers", id: "LIST" }, // ← Add this too
       ],
     }),
+    // Payable adjustments go to their own endpoint — the general order update
+    // no longer accepts payableAdjustment.
+    applyPayableAdjustment: builder.mutation<
+      any,
+      { id: string; payableAdjustment: number; payableAdjustmentNote?: string }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/order/${id}/payable-adjustment`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: "Orders", id },
+        "Orders",
+        "Dashboard",
+        "SalesOverview",
+        "Chart",
+        "Customers",
+        "Logs",
+        "SalesReport",
+        { type: "Customers", id: "LIST" },
+      ],
+    }),
     deleteOrder: builder.mutation<{ success: boolean }, string>({
       query: (id) => ({
         url: `/order/${id}`,
@@ -206,7 +229,8 @@ export const {
   useGiteSingleOrderQuery,
   useGetPaymentHistoryQuery,
   useInsertPaymentMutation,
-  useGiveCreditToCustomerMutation
+  useGiveCreditToCustomerMutation,
+  useApplyPayableAdjustmentMutation
 } = orderManagementApi;
 
 export default orderManagementApi;

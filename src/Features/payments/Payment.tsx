@@ -97,38 +97,33 @@ export default function Payment({
       toast.error("Amount received must be greater than 0.");
       return;
     }
-    // Single order — partial payments are always allowed. When the
-    // credit-balance checkbox is ON, the available credit is applied on
-    // top of the cash up to its balance; any remaining shortfall leaves
-    // the order partially paid.
+    // Single order: partial payments are allowed; the balance simply carries
+    // over. Multiple orders: the payment must clear their combined balance
+    // exactly, so no set of invoices is left half-settled with no record of how
+    // the money was split. Mirrors the same rule on the server.
+    const availableCredit = roundMoney(
+      Number(customerData?.data?.creditBalance) || 0,
+    );
+    const required = roundMoney(selectedOpenBalanceTotal);
 
-    // For multiple orders, partial and overpayment are both allowed:
-    // - Underpayment: orders are paid up to the available amount via
-    //   the server's FIFO distribution and marked partiallyPaid.
-    // - Overpayment: the extra amount is added to the customer's credit
-    //   balance on the server.
-    // We only block at the client when the user opted-in to credit but
-    // asked for more credit than the customer actually has.
-    if (selectedOrderIds.length > 1 && isCreditBalanceAdjust) {
-      const required = roundMoney(selectedOpenBalanceTotal);
-      const availableCredit = roundMoney(
-        Number(customerData?.data?.creditBalance) || 0,
-      );
-      const shortfall = roundMoney(Math.max(0, required - amountReceived));
-      const creditNeeded = roundMoney(Math.min(shortfall, availableCredit));
+    if (selectedOrderIds.length > 1) {
+      const creditApplied = isCreditBalanceAdjust
+        ? roundMoney(Math.min(Math.max(0, required - amountReceived), availableCredit))
+        : 0;
+      const offered = roundMoney(amountReceived + creditApplied);
 
-      // Defensive: don't request more credit than is on the customer
-      // account. This can only happen if amountReceived is greater than
-      // the required balance (overpayment) — in that case no credit is
-      // needed and this block is skipped.
-      if (shortfall > 0.01 && creditNeeded > availableCredit + 0.01) {
+      if (Math.abs(offered - required) > 0.01) {
         toast.error(
-          `Insufficient credit balance. Available: $${availableCredit.toFixed(
-            2,
-          )}, needed: $${creditNeeded.toFixed(2)}.`,
+          `A payment covering multiple orders must match their combined open balance exactly. ` +
+            `Required: $${required.toFixed(2)}, provided: $${offered.toFixed(2)}.`,
         );
         return;
       }
+    }
+
+    if (required <= 0.01) {
+      toast.error("The selected order(s) are already settled — there is nothing to pay.");
+      return;
     }
 
     const formData = new FormData();
@@ -251,7 +246,7 @@ export default function Payment({
                         <SelectContent>
                           <SelectItem value="check">💳 Check</SelectItem>
                           <SelectItem value="cash">💵 Cash</SelectItem>
-                          <SelectItem value="cc">💳 Credit Card</SelectItem>
+                          <SelectItem value="cc-manual">💳 Credit Card</SelectItem>
                           <SelectItem value="donation">🎁 Donation</SelectItem>
                         </SelectContent>
                       </Select>
@@ -269,6 +264,10 @@ export default function Payment({
                   </Label>
                   <Input
                     type="date"
+                    // The server rejects future dates — money cannot be
+                    // received tomorrow. Cap the picker so it cannot be chosen
+                    // rather than failing after submit.
+                    max={new Date().toISOString().split("T")[0]}
                     {...register("paymentDate", {
                       required: "Payment Date is required",
                     })}
@@ -623,7 +622,7 @@ export default function Payment({
 
                         {/* Transaction ID Column */}
                         <TableCell>
-                          {row.method === "cc" && row.transactionId ? (
+                          {(row.method === "cc" || row.method === "cc-manual") && row.transactionId ? (
                             <button
                               onClick={() => {
                                 navigator.clipboard.writeText(

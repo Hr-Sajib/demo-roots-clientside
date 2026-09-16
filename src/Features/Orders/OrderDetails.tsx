@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { matchesProductSearch } from "@/lib/productSearch";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -518,12 +519,13 @@ const OrderDetails = ({ id }: { id: string }) => {
   // Enhanced product search - by name OR barcode
   const filteredAvailableProducts =
     productsData?.data?.filter((product: any) => {
-      const searchLower = productSearch.toLowerCase();
-      const matchesName = product.name.toLowerCase().includes(searchLower);
-      const matchesBarcode =
-        product.barcodeString &&
-        product.barcodeString.toLowerCase().includes(searchLower);
-      return matchesName || matchesBarcode;
+      return matchesProductSearch(
+        productSearch,
+        product.name,
+        product.itemNumber,
+        product.barcodeString,
+        product.packetSize,
+      );
     }) || [];
 
   const returnHistory = orderData?.data?.returnData || [];
@@ -756,6 +758,25 @@ const OrderDetails = ({ id }: { id: string }) => {
                         ${orderData?.data?.openBalance?.toFixed(2) || "N/A"}
                       </span>
                     </div>
+                    {/* Shown only when non-zero: no adjustment is the normal
+                        case, and a "$0.00" row would imply one was applied.
+                        A negative value is a discount or waiver, coloured to
+                        read differently from a surcharge. */}
+                    {!!orderData?.data?.payableAdjustment && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Adjustment</span>
+                        <span
+                          className={`font-medium ${
+                            orderData.data.payableAdjustment < 0
+                              ? "text-green-700"
+                              : "text-amber-700"
+                          }`}
+                        >
+                          {orderData.data.payableAdjustment < 0 ? "−" : "+"}$
+                          {Math.abs(orderData.data.payableAdjustment).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -833,6 +854,21 @@ const OrderDetails = ({ id }: { id: string }) => {
                           ),
                         )}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Sits directly under the photos because the two are
+                      recorded together at drop-off — the note is usually what
+                      explains the photos. Stacked rather than inline: a note is
+                      free text and would be truncated in a label/value row. */}
+                  {orderData?.data?.deliveryNote && (
+                    <div className="py-1 border-t border-gray-100">
+                      <span className="text-xs text-gray-500 block mb-1">
+                        Delivery Notes
+                      </span>
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">
+                        {orderData.data.deliveryNote}
+                      </p>
                     </div>
                   )}
 

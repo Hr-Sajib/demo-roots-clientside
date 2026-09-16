@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { matchesProductSearch } from "@/lib/productSearch";
 import { useRouter } from "next/navigation";
 import { Search, X, Trash2, Loader2, Save } from "lucide-react";
 import toast from "react-hot-toast";
@@ -90,10 +91,12 @@ export default function SupplierCreditMemoForm({
       : products.filter((product: Product) => {
           const search = searchTerm.toLowerCase();
           return (
-            product.name.toLowerCase().includes(search) ||
-            product.itemNumber.toLowerCase().includes(search) ||
-            (product.barcodeString &&
-              product.barcodeString.toLowerCase().includes(search))
+            matchesProductSearch(
+              search,
+              product.name,
+              product.itemNumber,
+              product.barcodeString,
+            )
           );
         });
 

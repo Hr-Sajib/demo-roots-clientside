@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { matchesProductSearch } from "@/lib/productSearch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/apiFetch";
@@ -199,7 +200,12 @@ const B2COrderDetails = ({ params }: { params: { orderId: string } }) => {
 
   const filteredAvailableProducts =
     productsData?.data?.filter((product: any) =>
-      product.name.toLowerCase().includes(productSearch.toLowerCase()),
+      matchesProductSearch(
+        productSearch,
+        product.name,
+        product.itemNumber,
+        product.barcodeString,
+      ),
     ) || [];
 
   const returnHistory = orderData?.data?.returnData || [];

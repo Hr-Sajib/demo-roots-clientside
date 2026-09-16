@@ -1,5 +1,6 @@
 // components/AddProductModal.tsx
 import { useState, useEffect, useRef } from "react";
+import { matchesProductSearch } from "@/lib/productSearch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,10 @@ import {
 } from "@/components/ui/dialog";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
-import { useUpdateContainerProductsMutation } from "@/redux/api/containerApi";
+import {
+  useUpdateContainerProductsMutation,
+  useLazyGetLastPurchaseCostQuery,
+} from "@/redux/api/containerApi";
 
 interface Product {
   _id: string;
@@ -80,7 +84,7 @@ const SearchableSelect = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = options.filter((opt) =>
-    renderOption(opt).toLowerCase().includes(search.toLowerCase())
+    matchesProductSearch(search, renderOption(opt))
   );
 
   const selectedLabel = options.find((opt) => getValue(opt) === value)
@@ -164,6 +168,7 @@ export default function AddProductModal({
 }: AddProductModalProps) {
   const [updateContainerProducts, { isLoading: isAddingProduct }] =
     useUpdateContainerProductsMutation();
+  const [fetchLastPurchaseCost] = useLazyGetLastPurchaseCostQuery();
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState("1");
@@ -176,22 +181,21 @@ export default function AddProductModal({
   // Filter products based on search term (name or barcode) and selected category
   const getFilteredProducts = () => {
     let filtered = products;
-    
+
     // Filter by search term (name or barcode)
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (p) =>
-          p.name.toLowerCase().includes(term) ||
-          (p.barcodeString && p.barcodeString.toLowerCase().includes(term))
+          matchesProductSearch(term, p.name, p.itemNumber, p.barcodeString, p.packetSize)
       );
     }
-    
+
     // Filter by selected category (if any)
     if (selectedCategory) {
       filtered = filtered.filter((p) => p.categoryId.name === selectedCategory);
     }
-    
+
     return filtered;
   };
 
@@ -259,6 +263,34 @@ export default function AddProductModal({
       perCaseCost: qty > 0 ? purchase / qty : 0,
       cbm: cbm,
     };
+
+    // Warn if this item is being bought dearer than last time. Compared
+    // per-case and raw — both sides exclude freight — so the two figures are
+    // the same kind of number. The toast deliberately does not auto-close:
+    // paying more than before is something someone should actively
+    // acknowledge, not something that scrolls past while they type the next row.
+    try {
+      const prev = await fetchLastPurchaseCost({
+        itemNumber: selectedProduct.itemNumber,
+        excludeContainerId: containerId,
+      }).unwrap();
+
+      const previousCost = Number(prev?.data?.perCaseCost) || 0;
+      const thisCost = productPayload.perCaseCost;
+
+      if (previousCost > 0 && thisCost > previousCost) {
+        toast.warning(
+          `Bought ${selectedProduct.itemNumber} at $${previousCost.toFixed(2)} previously` +
+            (prev?.data?.containerNumber
+              ? ` (container ${prev.data.containerNumber})`
+              : ""),
+          { autoClose: false, closeOnClick: false, closeButton: true },
+        );
+      }
+    } catch {
+      // A missing or failed price lookup must never block the add — the
+      // warning is advisory, adding the product is the actual task.
+    }
 
     // Legacy callback (kept for any flows that still rely on parent-side state)
     if (onAdd) {

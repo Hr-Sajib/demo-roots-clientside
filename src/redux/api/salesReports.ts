@@ -46,6 +46,8 @@ export interface OverallSalesDataPoint {
   totalOrders: number;
   orderDetails: OrderDetail[];
   totalRevenue: number;
+  /** Share of this period's revenue settled by donation payments. */
+  donationFunded: number;
   totalCustomersCovered: number;
   averageOrderValue: number;
 }

@@ -120,6 +120,32 @@ const containerApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["Containers", "Products", "Inventory"], // Invalidate Products and Inventory
     }),
+
+    // What this item last cost per case, from the most recent earlier
+    // container. `data` is null when it has never been bought — a first
+    // purchase, not an error. Queried lazily at the moment a product is added,
+    // so the buyer can be told they are paying more than last time.
+    getLastPurchaseCost: builder.query<
+      {
+        data: {
+          itemNumber: string;
+          perCaseCost: number;
+          purchasePrice: number;
+          quantity: number;
+          perCaseShippingCost: number;
+          containerNumber?: string;
+          containerName?: string;
+          deliveryDate?: string;
+        } | null;
+      },
+      { itemNumber: string; excludeContainerId?: string }
+    >({
+      query: ({ itemNumber, excludeContainerId }) => ({
+        url: `/container/last-purchase-cost/${encodeURIComponent(itemNumber)}`,
+        method: "GET",
+        params: excludeContainerId ? { excludeContainerId } : undefined,
+      }),
+    }),
   }),
 });
 
@@ -130,6 +156,7 @@ export const {
   useUpdateContainerBasicInfoMutation,
   useUpdateContainerProductsMutation,
   useDeleteContainerMutation,
+  useLazyGetLastPurchaseCostQuery,
   useImportContainerExcelMutation,
 } = containerApi;
 

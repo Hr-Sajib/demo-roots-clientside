@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { matchesProductSearch } from "@/lib/productSearch";
 
 interface QuoteModalProps {
   isOpen: boolean;
@@ -101,7 +102,7 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
                     <div className="absolute z-10 w-full max-h-40 overflow-y-auto bg-white border rounded-md shadow-lg mt-1">
                       {productsData?.data
                         ?.filter((product: any) =>
-                          product.name.toLowerCase().includes((item.productSearch || "").toLowerCase())
+                          matchesProductSearch(item.productSearch, product.name, product.itemNumber, product.barcodeString)
                         )
                         .map((product: any) => (
                           <div
@@ -113,7 +114,7 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
                           </div>
                         ))}
                       {productsData?.data?.filter((product: any) =>
-                        product.name.toLowerCase().includes((item.productSearch || "").toLowerCase())
+                        matchesProductSearch(item.productSearch, product.name, product.itemNumber, product.barcodeString)
                       ).length === 0 && <div className="p-2 text-gray-500">No products found</div>}
                     </div>
                   )}

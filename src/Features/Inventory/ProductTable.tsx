@@ -1,5 +1,6 @@
 "use client";
 import { BsFileSpreadsheetFill } from "react-icons/bs";
+import { matchesProductSearch } from "@/lib/productSearch";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { apiFetch, apiFetchWithHeaders, triggerDownload } from "@/lib/apiFetch";
@@ -203,12 +204,14 @@ export default function AllGetProducts() {
     return products.filter((product) => {
       const searchLower = search.toLowerCase();
 
-      const matchesSearch =
-        search === "" ||
-        product.name?.toLowerCase().includes(searchLower) ||
-        product.itemNumber?.toLowerCase().includes(searchLower) ||
-        product.barcodeString?.toLowerCase().includes(searchLower) ||
-        (product.categoryId?.name?.toLowerCase() ?? "").includes(searchLower);
+      const matchesSearch = matchesProductSearch(
+        search,
+        product.name,
+        product.itemNumber,
+        product.barcodeString,
+        product.categoryId?.name,
+        product.packetSize,
+      );
 
       const matchesCategory =
         activeFilters.categories.length === 0 ||

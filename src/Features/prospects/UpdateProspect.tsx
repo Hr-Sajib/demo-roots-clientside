@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { matchesProductSearch } from "@/lib/productSearch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -290,7 +291,12 @@ export default function UpdateProspectPage({
   };
 
   const filteredAvailableProducts = inventoryData?.data?.filter((product: Product) =>
-    product.name.toLowerCase().includes(productSearch.toLowerCase())
+    matchesProductSearch(
+      productSearch,
+      product.name,
+      (product as any).itemNumber,
+      (product as any).barcodeString,
+    )
   ) || [];
 
   const handleFollowUpInputChange = (

@@ -7,6 +7,7 @@ import { useAddContainerMutation } from '@/redux/api/containerApi';
 import { useGetInventoryQuery } from '@/redux/api/inventory';
 import { useGetCategoriesQuery } from '@/redux/api/categories';
 import toast from 'react-hot-toast';
+import { useLazyGetLastPurchaseCostQuery } from '@/redux/api/containerApi';
 import { ChevronDown, X, PlusCircle, Truck, Package, DollarSign, Calendar, MapPin, Box, Loader2, Upload, FileText, Image as ImageIcon, File } from 'lucide-react';
 import { Container, ContainerProduct } from '@/types';
 
@@ -285,6 +286,8 @@ const AddContainerPage = () => {
     }
   };
 
+  const [fetchLastPurchaseCost] = useLazyGetLastPurchaseCostQuery();
+
   const handleAddProduct = () => {
     if (
       newProduct.category &&
@@ -309,6 +312,49 @@ const AddContainerPage = () => {
       const purchasePrice = toNumber(newProductPurchasePriceStr);
       const perCaseCost = quantity > 0 ? purchasePrice / quantity : 0;
       const perCasePurchasePrice = purchasePrice / quantity;
+
+      // Warn if this item is being bought dearer than last time. Compared
+      // per-case and raw — both sides exclude freight — so the two figures are
+      // the same kind of number.
+      //
+      // `toast.custom` with `duration: Infinity` rather than a plain toast:
+      // paying more than before is something someone should actively
+      // acknowledge, so it stays until dismissed with the X rather than
+      // scrolling past while the next row is typed.
+      fetchLastPurchaseCost({ itemNumber: itemNumberToCheck })
+        .unwrap()
+        .then((prev: any) => {
+          const previousCost = Number(prev?.data?.perCaseCost) || 0;
+          if (previousCost > 0 && perCaseCost > previousCost) {
+            const where = prev?.data?.containerNumber
+              ? ` (container ${prev.data.containerNumber})`
+              : '';
+            toast.custom(
+              (t) => (
+                <div
+                  className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-amber-50 border border-amber-300 shadow-lg rounded-lg pointer-events-auto flex items-start gap-3 p-4`}
+                >
+                  <span className="text-amber-900 text-sm flex-1">
+                    Bought <strong>{itemNumberToCheck}</strong> at $
+                    {previousCost.toFixed(2)} previously{where}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toast.dismiss(t.id)}
+                    aria-label="Dismiss"
+                    className="text-amber-700 hover:text-amber-900 font-bold leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ),
+              { duration: Infinity },
+            );
+          }
+        })
+        .catch(() => {
+          // Advisory only — a failed lookup must never block adding the row.
+        });
 
       setContainer((prev) => ({
         ...prev,

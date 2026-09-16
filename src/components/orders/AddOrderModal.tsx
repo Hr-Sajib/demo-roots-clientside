@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import ProductImageModal from "@/components/shared/ProductImageModal";
+import { matchesProductSearch } from "@/lib/productSearch";
 import { useGetCustomersQuery } from "@/redux/api/customers";
 import { useGetCategoriesQuery } from "@/redux/api/categories";
 import { useGetProductsQuery } from "@/redux/api/product";
@@ -87,6 +89,7 @@ interface ProductDetails {
   category: string;
   price: number;
   lastSoldPrice?: number;
+  images?: string[];
   availableQty: number;
   unit: string;
   warehouseLocations: WarehouseLocationInfo[];
@@ -343,6 +346,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
       itemCode: product.itemNumber,
       price: clientPrice,
       lastSoldPrice,
+      images: ((product as any).images || []) as string[],
       availableQty: totalAvailable,
       unit: product.weightUnit,
       category: product.categoryId.name,
@@ -608,17 +612,49 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     );
   };
 
+  // Remembers which lines have already warned, so the toast fires once per
+  // product rather than on every keystroke while the price is being typed.
+  const priceWarnedRef = useRef<Set<string>>(new Set());
+
+  // Which product's images are being viewed, if any. Held as the product's own
+  // data rather than an index, so the modal is unaffected by the order lines
+  // being reordered or removed underneath it.
+  const [imageViewer, setImageViewer] = useState<{
+    images: string[];
+    name: string;
+  } | null>(null);
+
   const updatePrice = (productId: string, price: number) => {
     setOrderItems((items) =>
-      items.map((item) =>
-        item.product.id === productId
-          ? {
-              ...item,
-              price: price,
-              total: price * item.totalQuantity - item.discount,
-            }
-          : item,
-      ),
+      items.map((item) => {
+        if (item.product.id !== productId) return item;
+
+        // Warn when this customer has previously bought the product cheaper —
+        // quoting above the last agreed price is usually a mistake, and it is
+        // far easier to catch here than after the order is placed.
+        const lastSold = Number(item.product.lastSoldPrice);
+        if (
+          Number.isFinite(lastSold) &&
+          lastSold > 0 &&
+          price > lastSold &&
+          !priceWarnedRef.current.has(productId)
+        ) {
+          priceWarnedRef.current.add(productId);
+          toast.warning(
+            `Sold ${item.product.name} at a lower price before ($${lastSold.toFixed(2)})`,
+            { autoClose: 10000, closeButton: true },
+          );
+        }
+        // Dropping back to or below the previous price clears the warning, so
+        // a later increase warns again instead of passing silently.
+        if (price <= lastSold) priceWarnedRef.current.delete(productId);
+
+        return {
+          ...item,
+          price: price,
+          total: price * item.totalQuantity - item.discount,
+        };
+      }),
     );
   };
 
@@ -634,9 +670,13 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
       const searchLower = searchTerm.toLowerCase();
       return products.filter(
         (product: Product) =>
-          product.name.toLowerCase().includes(searchLower) ||
-          product.itemNumber.toLowerCase().includes(searchLower) ||
-          (product.barcodeString && product.barcodeString.toLowerCase().includes(searchLower)),
+          matchesProductSearch(
+            searchTerm,
+            product.name,
+            product.itemNumber,
+            product.barcodeString,
+            (product as any).packetSize,
+          ),
       );
     }
 
@@ -788,7 +828,16 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-7xl w-full h-full max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="!max-w-7xl w-full h-full max-h-[90vh] overflow-y-auto"
+        // The image viewer portals to document.body, so every click inside it
+        // — including its close button — reads as "outside" to this dialog and
+        // would otherwise dismiss the whole order. Same for Escape, which the
+        // viewer handles itself.
+        onPointerDownOutside={(e) => { if (imageViewer) e.preventDefault(); }}
+        onInteractOutside={(e) => { if (imageViewer) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (imageViewer) e.preventDefault(); }}
+      >
         <DialogHeader>
           <DialogTitle>Add New Order</DialogTitle>
         </DialogHeader>
@@ -1019,7 +1068,27 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                                   {isPreviouslyPurchased && (
                                     <span className="text-yellow-500 mr-1">★</span>
                                   )}
-                                  {product.name}
+                                  {/* Opens this product's photos. Stops the
+                                      click here so it cannot also act as a
+                                      row selection. */}
+                                  {((product as any).images?.length ?? 0) > 0 ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setImageViewer({
+                                          images: (product as any).images as string[],
+                                          name: product.name,
+                                        });
+                                      }}
+                                      className="text-left hover:underline cursor-zoom-in"
+                                      title="View product images"
+                                    >
+                                      {product.name}
+                                    </button>
+                                  ) : (
+                                    product.name
+                                  )}
                                   {isPreviouslyPurchased && purchaseCountValue > 0 && (
                                     <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                                       Purchased {purchaseCountValue} {purchaseCountValue === 1 ? 'time' : 'times'}
@@ -1484,6 +1553,14 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
           </CardContent>
         </Card>
       </DialogContent>
+
+      {imageViewer && (
+        <ProductImageModal
+          images={imageViewer.images}
+          productName={imageViewer.name}
+          onClose={() => setImageViewer(null)}
+        />
+      )}
     </Dialog>
   );
 };

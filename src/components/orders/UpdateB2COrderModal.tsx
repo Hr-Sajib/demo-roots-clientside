@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { matchesProductSearch } from "@/lib/productSearch";
 import { useGetCategoriesQuery } from "@/redux/api/categories";
 import {
   useGetProductsQuery,
@@ -324,8 +325,7 @@ const UpdateB2COrderModal: React.FC<UpdateB2COrderModalProps> = ({
   const filteredProducts = searchTerm
     ? allProducts.filter(
         (p: Product) =>
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.itemNumber.toLowerCase().includes(searchTerm.toLowerCase()),
+          matchesProductSearch(searchTerm, p.name, p.itemNumber, (p as any).barcodeString),
       )
     : categoryProducts;
 

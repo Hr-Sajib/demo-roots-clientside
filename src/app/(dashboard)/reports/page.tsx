@@ -1179,6 +1179,7 @@ const SalesReportsPage = () => {
                 <th className="px-6 py-3 text-left">Period</th>
                 <th className="px-6 py-3 text-right">Total Orders</th>
                 <th className="px-6 py-3 text-right">Total Revenue</th>
+                <th className="px-6 py-3 text-right">Donation Funded</th>
                 <th className="px-6 py-3 text-right">Customers Covered</th>
                 <th className="px-6 py-3 text-right">Avg Order Value</th>
               </tr>
@@ -1195,6 +1196,14 @@ const SalesReportsPage = () => {
                   </td>
                   <td className="px-6 py-4 text-right font-semibold text-red-700">
                     ${item.totalRevenue.toFixed(2)}
+                  </td>
+                  {/* Shown as a dash rather than $0.00 when nothing in the
+                      period was donation-settled — a zero here is the absence
+                      of donations, not a measured amount. */}
+                  <td className="px-6 py-4 text-right text-emerald-700">
+                    {item.donationFunded
+                      ? `$${item.donationFunded.toFixed(2)}`
+                      : "-"}
                   </td>
                   <td className="px-6 py-4 text-right">
                     {item.totalCustomersCovered}

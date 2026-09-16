@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import ProductImageModal from "@/components/shared/ProductImageModal";
+import { matchesProductSearch } from "@/lib/productSearch";
 import { useGetCustomersQuery } from "@/redux/api/customers";
 import Cookies from "js-cookie";
 import { useGetCategoriesQuery } from "@/redux/api/categories";
@@ -675,12 +677,30 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
   };
 
   // Enhanced product search - by name, SKU, or barcode
+  // Which product's images are being viewed, if any.
+  const [imageViewer, setImageViewer] = useState<{
+    images: string[];
+    name: string;
+  } | null>(null);
+
+  // Images are looked up from the loaded catalogue by id rather than carried
+  // on the order line: the line object is built in six different places here,
+  // and threading a new field through all of them is more to get wrong than a
+  // single lookup at click time.
+  const productImages = (productId: string): string[] =>
+    ((allProducts.find((x: any) => x._id === productId) as any)?.images ||
+      []) as string[];
+
   const filteredProducts = searchTerm
     ? allProducts.filter(
         (p: Product) =>
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.itemNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (p.barcodeString && p.barcodeString.toLowerCase().includes(searchTerm.toLowerCase())),
+          matchesProductSearch(
+            searchTerm,
+            p.name,
+            p.itemNumber,
+            p.barcodeString,
+            (p as any).packetSize,
+          ),
       )
     : categoryProducts;
 
@@ -974,7 +994,11 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="verified">Verified</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                {/* "Cancelled" is deliberately not offered. Cancelling never
+                    returned the order's stock to inventory, so it quietly lost
+                    goods; deleting the order does return them. The status
+                    remains in the model so existing cancelled orders still
+                    display correctly. */}
               </SelectContent>
             </Select>
           </div>
@@ -1106,7 +1130,27 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-semibold">{p.name}</p>
+                            {/* Opens this product's photos. Stops the
+                                click here so it cannot also act as a row
+                                selection. */}
+                            {productImages(p._id).length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setImageViewer({
+                                    images: productImages(p._id),
+                                    name: p.name,
+                                  });
+                                }}
+                                className="font-semibold text-left hover:underline cursor-zoom-in"
+                                title="View product images"
+                              >
+                                {p.name}
+                              </button>
+                            ) : (
+                              <p className="font-semibold">{p.name}</p>
+                            )}
                             {/* {p.barcodeString && (
                               <p className="text-xs text-gray-400">
                                 Barcode: {p.barcodeString}
@@ -1448,7 +1492,7 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
                         }`}
                       >
                         <div className="flex-1">
-                          <p className="font-medium">{item.product.name}</p>
+                                                    <p className="font-medium">{item.product.name}</p>
                           <p className="text-xs text-gray-600">
                             {item.totalQuantity} × ${item.product.price.toFixed(2)}
                             {item.discount > 0 &&
@@ -1511,6 +1555,13 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
           )}
         </div>
       </CardContent>
+      {imageViewer && (
+        <ProductImageModal
+          images={imageViewer.images}
+          productName={imageViewer.name}
+          onClose={() => setImageViewer(null)}
+        />
+      )}
     </Card>
   );
 };

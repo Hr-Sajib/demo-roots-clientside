@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import ProductImageModal from "@/components/shared/ProductImageModal";
+import {
+  resolveLastSoldPrice,
+  showPriceRaiseAlert,
+} from "@/lib/priceRaiseAlert";
+import ProductNameHoverImage, {
+  preloadProductImages,
+} from "@/components/shared/ProductNameHoverImage";
 import { matchesProductSearch } from "@/lib/productSearch";
 import { useGetCustomersQuery } from "@/redux/api/customers";
 import { useGetCategoriesQuery } from "@/redux/api/categories";
@@ -625,29 +631,30 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
   } | null>(null);
 
   const updatePrice = (productId: string, price: number) => {
+    // Resolved live from the product record rather than read off the order
+    // line. The line's copy is captured when the product is added, so picking
+    // the customer afterwards — the normal order of operations here — left it
+    // undefined and the alert could never fire.
+    const rawProduct = products.find((p: Product) => p._id === productId);
+    const lastSold = resolveLastSoldPrice(rawProduct, selectedClient);
+
+    if (
+      lastSold !== undefined &&
+      price > lastSold &&
+      !priceWarnedRef.current.has(productId)
+    ) {
+      priceWarnedRef.current.add(productId);
+      showPriceRaiseAlert(rawProduct?.name ?? "This product", lastSold, price);
+    }
+    // Dropping back to or below the previous price clears the warning, so a
+    // later increase warns again instead of passing silently.
+    if (lastSold !== undefined && price <= lastSold) {
+      priceWarnedRef.current.delete(productId);
+    }
+
     setOrderItems((items) =>
       items.map((item) => {
         if (item.product.id !== productId) return item;
-
-        // Warn when this customer has previously bought the product cheaper —
-        // quoting above the last agreed price is usually a mistake, and it is
-        // far easier to catch here than after the order is placed.
-        const lastSold = Number(item.product.lastSoldPrice);
-        if (
-          Number.isFinite(lastSold) &&
-          lastSold > 0 &&
-          price > lastSold &&
-          !priceWarnedRef.current.has(productId)
-        ) {
-          priceWarnedRef.current.add(productId);
-          toast.warning(
-            `Sold ${item.product.name} at a lower price before ($${lastSold.toFixed(2)})`,
-            { autoClose: 10000, closeButton: true },
-          );
-        }
-        // Dropping back to or below the previous price clears the warning, so
-        // a later increase warns again instead of passing silently.
-        if (price <= lastSold) priceWarnedRef.current.delete(productId);
 
         return {
           ...item,
@@ -696,6 +703,16 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
   };
 
   const filteredProducts = getFilteredProducts();
+
+
+  // Warm the first image of whatever is currently on screen so the hover
+  // preview has its bytes ready before the cursor arrives. Capped and marked
+  // low-priority inside the helper so this never competes with the list render.
+  useEffect(() => {
+    preloadProductImages(
+      filteredProducts.map((p: any) => (p.images || [])[0]),
+    );
+  }, [filteredProducts]);
 
   const calculateTotals = () => {
     const itemsTotal = orderItems.reduce((acc, item) => acc + item.total, 0);
@@ -1068,27 +1085,12 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                                   {isPreviouslyPurchased && (
                                     <span className="text-yellow-500 mr-1">★</span>
                                   )}
-                                  {/* Opens this product's photos. Stops the
-                                      click here so it cannot also act as a
-                                      row selection. */}
-                                  {((product as any).images?.length ?? 0) > 0 ? (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setImageViewer({
-                                          images: (product as any).images as string[],
-                                          name: product.name,
-                                        });
-                                      }}
-                                      className="text-left hover:underline cursor-zoom-in"
-                                      title="View product images"
-                                    >
-                                      {product.name}
-                                    </button>
-                                  ) : (
-                                    product.name
-                                  )}
+                                  {/* Hovering the name shows a small preview,
+                                      replacing the old click-to-open modal. */}
+                                  <ProductNameHoverImage
+                                    name={product.name}
+                                    images={(product as any).images as string[]}
+                                  />
                                   {isPreviouslyPurchased && purchaseCountValue > 0 && (
                                     <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                                       Purchased {purchaseCountValue} {purchaseCountValue === 1 ? 'time' : 'times'}
@@ -1519,8 +1521,15 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
                       <span>Shipping Charge:</span>
                       <span className="font-medium">${shippingCharge.toFixed(2)}</span>
                     </div>
+                    {/* Two distinct figures: how many different products are on
+                        the order, and how many cases that adds up to. Kept
+                        identical to the Update Order summary. */}
                     <div className="flex justify-between text-sm">
-                      <span>Total Qty:</span>
+                      <span>Total Products:</span>
+                      <span className="font-medium">{orderItems.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Total Cases:</span>
                       <span className="font-medium">{totalQuantity}</span>
                     </div>
                     <div className="flex justify-between font-bold text-base border-t pt-2">
@@ -1554,13 +1563,6 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         </Card>
       </DialogContent>
 
-      {imageViewer && (
-        <ProductImageModal
-          images={imageViewer.images}
-          productName={imageViewer.name}
-          onClose={() => setImageViewer(null)}
-        />
-      )}
     </Dialog>
   );
 };

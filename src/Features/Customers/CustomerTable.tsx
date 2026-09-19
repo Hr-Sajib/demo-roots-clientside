@@ -25,6 +25,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAllowance } from "@/hooks/useAllowance";
 import type { CurrentUser } from "@/redux/slices/userSlice";
 import { Customer } from "@/types";
+import { matchesProductSearch } from "@/lib/productSearch";
 import {
   setCustomers,
   selectCustomers,
@@ -145,11 +146,34 @@ export default function CustomerTable() {
     return 0;
   });
 
-  // Search filter
-  const filteredData = sortedData.filter(
-    (c) =>
-      c.storeName?.toLowerCase().includes(search.toLowerCase()) ||
-      c.storePersonName?.toLowerCase().includes(search.toLowerCase())
+  // Search filter.
+  //
+  // Previously this matched only `storeName` and `storePersonName`, so looking
+  // a customer up by email, phone, city or tax id returned nothing and the
+  // search appeared to be silently dropping results. It now covers every field
+  // a rep would plausibly type, using the same token-based matcher as the
+  // product search (so "smith 75039" matches across two different fields, and
+  // punctuation/casing in phone numbers and zips stops mattering).
+  //
+  // No cap is applied here or upstream: every match is rendered.
+  const filteredData = sortedData.filter((c) =>
+    matchesProductSearch(
+      search,
+      c.storeName,
+      c.storePersonName,
+      c.storePersonEmail,
+      c.storePhone,
+      c.storePersonPhone,
+      c.billingAddress,
+      c.billingCity,
+      c.billingState,
+      c.billingZipcode,
+      c.shippingAddress,
+      c.shippingCity,
+      c.shippingState,
+      c.shippingZipcode,
+      c.salesTaxId,
+    ),
   );
 
   // Combined loading & error

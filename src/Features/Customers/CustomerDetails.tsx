@@ -364,6 +364,11 @@ const CustomerDetailsPage: React.FC = () => {
   // (hashed) password can't be read or reused.
   const handleCreateInOtherSystem = async () => {
     setIsCreatingInOtherSystem(true);
+    // A pending toast goes up immediately so the click has visible feedback
+    // from the first moment, not just a disabled menu item.
+    const toastId = toast.loading(
+      `Creating ${customer.storeName} in SupplyPro...`,
+    );
     try {
       const randomPassword = Math.random().toString(36).slice(-10) + "A1!";
       const result = await registerInOtherSystem({
@@ -383,11 +388,35 @@ const CustomerDetailsPage: React.FC = () => {
         password: randomPassword,
       });
 
+      // Replace the pending toast in place, so there is always a visible
+      // outcome — previously a silent failure left the user with nothing.
       if (result.success) {
-        toast.success(`${customer.storeName} was created in SupplyPro successfully!`);
+        toast.update(toastId, {
+          render: `${customer.storeName} was created in SupplyPro. ${result.message}`,
+          type: "success",
+          isLoading: false,
+          autoClose: 6000,
+          closeButton: true,
+        });
       } else {
-        toast.error(`Could not create ${customer.storeName} in SupplyPro: ${result.message}`);
+        toast.update(toastId, {
+          render: `Could not create ${customer.storeName} in SupplyPro — ${result.message}`,
+          type: "error",
+          isLoading: false,
+          autoClose: false,
+          closeButton: true,
+        });
       }
+    } catch (err: any) {
+      toast.update(toastId, {
+        render: `Could not create ${customer.storeName} in SupplyPro — ${
+          err?.message || "unexpected error"
+        }`,
+        type: "error",
+        isLoading: false,
+        autoClose: false,
+        closeButton: true,
+      });
     } finally {
       setIsCreatingInOtherSystem(false);
     }

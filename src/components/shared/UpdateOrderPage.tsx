@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import ProductImageModal from "@/components/shared/ProductImageModal";
+import {
+  resolveLastSoldPrice,
+  showPriceRaiseAlert,
+} from "@/lib/priceRaiseAlert";
+import ProductNameHoverImage, {
+  preloadProductImages,
+} from "@/components/shared/ProductNameHoverImage";
+import { formatFullAddress } from "@/lib/formatAddress";
 import { matchesProductSearch } from "@/lib/productSearch";
 import { useGetCustomersQuery } from "@/redux/api/customers";
 import Cookies from "js-cookie";
@@ -104,10 +111,13 @@ interface Order {
   storeId: {
     _id: string;
     storeName: string;
-    shippingAddress: string;
-    shippingCity: string;
-    shippingPostalCode: string;
-    shippingCountry: string;
+    // These mirror the customer schema exactly. The header previously read
+    // `shippingPostalCode` and `shippingCountry`, neither of which exists on a
+    // customer — so those two parts of the address always rendered blank.
+    shippingAddress?: string;
+    shippingCity?: string;
+    shippingState?: string;
+    shippingZipcode?: string;
   };
   products: Array<{
     productId: any;
@@ -642,7 +652,27 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
     );
   };
 
+  // Same guard the Add Order screen uses: warn loudly when a price is raised
+  // above what this customer last actually paid. This screen had no such check
+  // at all, so an edit could quietly push a line above the agreed price.
+  const priceWarnedRef = useRef<Set<string>>(new Set());
+
   const updatePrice = (id: string, price: number) => {
+    const rawProduct = allProducts.find((p: any) => p._id === id);
+    const lastSold = resolveLastSoldPrice(rawProduct, order.storeId?._id);
+
+    if (
+      lastSold !== undefined &&
+      price > lastSold &&
+      !priceWarnedRef.current.has(id)
+    ) {
+      priceWarnedRef.current.add(id);
+      showPriceRaiseAlert(rawProduct?.name ?? "This product", lastSold, price);
+    }
+    if (lastSold !== undefined && price <= lastSold) {
+      priceWarnedRef.current.delete(id);
+    }
+
     setOrderItems((prev) =>
       prev.map((item) =>
         item.product.id === id
@@ -711,6 +741,16 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
     }),
     { totalAmount: 0, totalQty: 0 },
   );
+
+
+  // Warm the first image of whatever is currently on screen so the hover
+  // preview has its bytes ready before the cursor arrives. Capped and marked
+  // low-priority inside the helper so this never competes with the list render.
+  useEffect(() => {
+    preloadProductImages(
+      filteredProducts.map((p: any) => (p.images || [])[0]),
+    );
+  }, [filteredProducts]);
 
   const handleSelectExistingItem = (productId: string) => {
     setSelectedProductId(productId);
@@ -926,8 +966,7 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
           <Edit className="w-5 h-5" />
           B2B | Delivering to{" "}
           <span className="text-green-700">
-            {order.storeId.shippingAddress} {order.storeId.shippingCity}{" "}
-            {order.storeId.shippingPostalCode} {order.storeId.shippingCountry}
+            {formatFullAddress(order.storeId)}
           </span>
         </CardTitle>
       </CardHeader>
@@ -1130,27 +1169,16 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            {/* Opens this product's photos. Stops the
-                                click here so it cannot also act as a row
-                                selection. */}
-                            {productImages(p._id).length > 0 ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setImageViewer({
-                                    images: productImages(p._id),
-                                    name: p.name,
-                                  });
-                                }}
-                                className="font-semibold text-left hover:underline cursor-zoom-in"
-                                title="View product images"
-                              >
-                                {p.name}
-                              </button>
-                            ) : (
-                              <p className="font-semibold">{p.name}</p>
-                            )}
+                            {/* Hovering the name shows a small preview. It
+                                replaced a click-to-open full-size modal, which
+                                cost a round trip and interrupted the flow of
+                                scanning down the list. */}
+                            <p className="font-semibold">
+                              <ProductNameHoverImage
+                                name={p.name}
+                                images={productImages(p._id)}
+                              />
+                            </p>
                             {/* {p.barcodeString && (
                               <p className="text-xs text-gray-400">
                                 Barcode: {p.barcodeString}
@@ -1517,8 +1545,15 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
                 </ScrollArea>
               </CardContent>
               <div className="border-t p-4 bg-gray-50 space-y-2">
+                {/* Two distinct figures that were previously conflated under
+                    "Total Items": how many different products are on the order,
+                    and how many cases that adds up to across all of them. */}
                 <div className="flex justify-between">
-                  <span>Total Items:</span>
+                  <span>Total Products:</span>
+                  <span className="font-bold">{orderItems.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Cases:</span>
                   <span className="font-bold">{totals.totalQty}</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold">
@@ -1555,13 +1590,6 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
           )}
         </div>
       </CardContent>
-      {imageViewer && (
-        <ProductImageModal
-          images={imageViewer.images}
-          productName={imageViewer.name}
-          onClose={() => setImageViewer(null)}
-        />
-      )}
     </Card>
   );
 };

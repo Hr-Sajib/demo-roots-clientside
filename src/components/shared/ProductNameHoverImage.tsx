@@ -139,7 +139,10 @@ const ProductNameHoverImage: React.FC<ProductNameHoverImageProps> = ({
         onFocus={show}
         onBlur={hide}
         tabIndex={0}
-        className={`cursor-help underline decoration-dotted underline-offset-2 ${className}`}
+        // No persistent underline — the name should read as ordinary text.
+        // A plain grey underline on hover is the only affordance that an
+        // image exists behind it.
+        className={`cursor-help hover:underline hover:decoration-gray-400 underline-offset-2 ${className}`}
         title={`${name} — hover to preview`}
       >
         {label}

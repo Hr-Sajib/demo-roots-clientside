@@ -3,8 +3,9 @@ import { toast } from "react-toastify";
 /**
  * Alert shown when a rep quotes a product above what this customer last paid.
  *
- * Deliberately obtrusive: it sits in the middle of the screen, is styled red,
- * and will not auto-dismiss. Quoting above the last agreed price is the kind of
+ * Deliberately obtrusive: it's large, styled red, pinned to the top of the
+ * screen with only a minimal gap so every part of it stays on screen, and it
+ * will not auto-dismiss. Quoting above the last agreed price is the kind of
  * mistake that is cheap to correct here and expensive to correct after the
  * customer has the invoice, so it is worth interrupting for.
  *
@@ -67,12 +68,21 @@ export const showPriceRaiseAlert = (
       draggable: false,
       closeButton: true,
       style: {
-        // Centred in the viewport rather than tucked into a corner, and wide
-        // enough that the numbers are readable at a glance.
-        position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
+        // Deliberately NOT `position: fixed` + `top: 50%` + a translate here.
+        // react-toastify's own toast-container carries a `transform` (it uses
+        // one to center itself horizontally), and per the CSS spec a transform
+        // on an ancestor becomes the containing block for any descendant's
+        // `position: fixed`. So a "fixed, centered in the viewport" toast
+        // nested inside that container was never actually centering against
+        // the viewport — it was centering against the container's own small
+        // box near the top of the page, which pushed most of the toast above
+        // the visible area. Reaching for `position: fixed` again to center a
+        // toast will reintroduce exactly that bug.
+        //
+        // Letting the toast sit in normal flow avoids the problem entirely:
+        // the container already pins itself to the top center with a 16px
+        // gap (`--toastify-toast-offset`), which is also exactly the "minimal
+        // gap, fully visible" placement that's wanted here.
         width: "min(560px, 92vw)",
         minHeight: "140px",
         background: "#B3261E",
@@ -84,7 +94,6 @@ export const showPriceRaiseAlert = (
         padding: "22px 24px",
         borderRadius: "12px",
         boxShadow: "0 18px 50px rgba(0,0,0,0.35)",
-        zIndex: 99999,
       },
     },
   );

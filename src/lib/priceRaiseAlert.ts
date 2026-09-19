@@ -1,4 +1,6 @@
+import { createElement } from "react";
 import { toast } from "react-toastify";
+import { X } from "lucide-react";
 
 /**
  * Alert shown when a rep quotes a product above what this customer last paid.
@@ -48,6 +50,37 @@ export const resolveLastSoldPrice = (
   return Number.isFinite(value) && value > 0 ? value : undefined;
 };
 
+// react-toastify's built-in close icon renders at ~14px, easy to miss on a
+// toast this size and fiddly to hit precisely. A larger, purpose-built button
+// replaces it — same top-right convention as the default, just sized to
+// actually be seen and clicked without hunting for it.
+const BigCloseButton = ({ closeToast }: { closeToast: () => void }) =>
+  createElement(
+    "button",
+    {
+      type: "button",
+      onClick: closeToast,
+      "aria-label": "Dismiss",
+      style: {
+        position: "absolute",
+        top: "10px",
+        right: "10px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "32px",
+        height: "32px",
+        padding: 0,
+        background: "transparent",
+        border: "none",
+        borderRadius: "8px",
+        cursor: "pointer",
+        color: "inherit",
+      },
+    },
+    createElement(X, { size: 22, strokeWidth: 2.5 }),
+  );
+
 export const showPriceRaiseAlert = (
   productName: string,
   lastSold: number,
@@ -58,7 +91,7 @@ export const showPriceRaiseAlert = (
       2,
     )}. You have entered $${newPrice.toFixed(
       2,
-    )} — $${(newPrice - lastSold).toFixed(2)} higher.\n\nConfirm this is intended before placing the order.`,
+    )} — $${(newPrice - lastSold).toFixed(2)} higher.`,
     {
       // One alert at a time — typing "1", "12", "125" should not stack three.
       toastId: PRICE_RAISE_TOAST_ID,
@@ -66,7 +99,7 @@ export const showPriceRaiseAlert = (
       autoClose: false,
       closeOnClick: false,
       draggable: false,
-      closeButton: true,
+      closeButton: BigCloseButton,
       style: {
         // Deliberately NOT `position: fixed` + `top: 50%` + a translate here.
         // react-toastify's own toast-container carries a `transform` (it uses
@@ -85,15 +118,20 @@ export const showPriceRaiseAlert = (
         // gap, fully visible" placement that's wanted here.
         width: "min(560px, 92vw)",
         minHeight: "140px",
-        background: "#B3261E",
-        color: "#FFFFFF",
+        // Tailwind's own red-100 / red-700, read straight from the installed
+        // `tailwindcss/colors` package rather than retyped by hand, so this
+        // matches exactly whatever `bg-red-100`/`text-red-700` render as
+        // elsewhere in the app — including if the palette ever changes.
+        background: "oklch(93.6% 0.032 17.717)", // red-100
+        color: "oklch(50.5% 0.213 27.518)", // red-700
         fontSize: "16px",
         lineHeight: "1.55",
         fontWeight: 600,
         whiteSpace: "pre-line",
-        padding: "22px 24px",
+        padding: "22px 40px 22px 24px", // extra right padding clears the close button
         borderRadius: "12px",
-        boxShadow: "0 18px 50px rgba(0,0,0,0.35)",
+        boxShadow: "0 18px 50px rgba(0,0,0,0.18)",
+        position: "relative",
       },
     },
   );

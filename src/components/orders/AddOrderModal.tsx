@@ -155,6 +155,19 @@ const PREVIOUSLY_PURCHASED_CATEGORY = {
   name: "📦 Previously Purchased",
 };
 
+// Radix wraps the real DOM event as `event.detail.originalEvent` on both
+// PointerDownOutsideEvent and FocusOutsideEvent, so the actual click target
+// has to be read from there rather than from the CustomEvent itself. Every
+// react-toastify toast — including its close button — lives inside a
+// `.Toastify__toast-container`, which is how a toast interaction is told
+// apart from a genuine click outside the modal.
+const isToastInteraction = (event: {
+  detail?: { originalEvent?: Event };
+}): boolean => {
+  const target = (event.detail?.originalEvent?.target ?? null) as HTMLElement | null;
+  return !!target?.closest(".Toastify__toast-container");
+};
+
 const AddOrderModal: React.FC<AddOrderModalProps> = ({
   open,
   onOpenChange,
@@ -622,14 +635,6 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
   // product rather than on every keystroke while the price is being typed.
   const priceWarnedRef = useRef<Set<string>>(new Set());
 
-  // Which product's images are being viewed, if any. Held as the product's own
-  // data rather than an index, so the modal is unaffected by the order lines
-  // being reordered or removed underneath it.
-  const [imageViewer, setImageViewer] = useState<{
-    images: string[];
-    name: string;
-  } | null>(null);
-
   const updatePrice = (productId: string, price: number) => {
     // Resolved live from the product record rather than read off the order
     // line. The line's copy is captured when the product is added, so picking
@@ -847,13 +852,21 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="!max-w-7xl w-full h-full max-h-[90vh] overflow-y-auto"
-        // The image viewer portals to document.body, so every click inside it
-        // — including its close button — reads as "outside" to this dialog and
-        // would otherwise dismiss the whole order. Same for Escape, which the
-        // viewer handles itself.
-        onPointerDownOutside={(e) => { if (imageViewer) e.preventDefault(); }}
-        onInteractOutside={(e) => { if (imageViewer) e.preventDefault(); }}
-        onEscapeKeyDown={(e) => { if (imageViewer) e.preventDefault(); }}
+        // The price-raise toast (react-toastify) portals to document.body,
+        // outside this DialogContent's own DOM subtree. Radix's Dialog treats
+        // any pointerdown outside its content as a request to close — so
+        // clicking the toast's own close button, which lives in that portal,
+        // read as "outside" and closed the whole Add Order modal on the first
+        // click; a second click then hit the (now-detached) toast to actually
+        // dismiss it. Recognising a click that originated inside a toast and
+        // letting it through, rather than treating it as outside, fixes both:
+        // one click dismisses the toast and the modal stays open.
+        onPointerDownOutside={(e) => {
+          if (isToastInteraction(e)) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (isToastInteraction(e)) e.preventDefault();
+        }}
       >
         <DialogHeader>
           <DialogTitle>Add New Order</DialogTitle>

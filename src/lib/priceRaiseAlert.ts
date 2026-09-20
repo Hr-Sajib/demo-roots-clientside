@@ -76,6 +76,7 @@ const BigCloseButton = ({ closeToast }: { closeToast: () => void }) =>
         borderRadius: "8px",
         cursor: "pointer",
         color: "inherit",
+        pointerEvents: "auto",
       },
     },
     createElement(X, { size: 22, strokeWidth: 2.5 }),
@@ -132,6 +133,13 @@ export const showPriceRaiseAlert = (
         borderRadius: "12px",
         boxShadow: "0 18px 50px rgba(0,0,0,0.18)",
         position: "relative",
+        // The toast portal renders as a sibling of the Add Order dialog, not
+        // a descendant. Radix's focus trap sets `pointer-events: none` on
+        // everything outside the open dialog's content so only the modal is
+        // interactive — the toast inherits that and becomes unclickable.
+        // Setting it back to `auto` here overrides the inherited value for
+        // this element and its children (the close button included).
+        pointerEvents: "auto",
       },
     },
   );

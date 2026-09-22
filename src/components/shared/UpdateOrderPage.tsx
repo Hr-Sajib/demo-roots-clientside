@@ -775,6 +775,21 @@ const UpdateOrderPage: React.FC<UpdateOrderPageProps> = ({
       return;
     }
 
+    // Location is only required from here on — at verification, not at
+    // creation (partner-site orders arrive with none). Catch it client-side
+    // with a clear, per-product message rather than a raw 400 from the API.
+    if (order?.orderStatus !== "verified" && orderStatus === "verified") {
+      const missingLocation = orderItems.find(
+        (item) => item.hasWarehouseLocations && item.warehouseSelections.length === 0,
+      );
+      if (missingLocation) {
+        toast.error(
+          `"${missingLocation.product.name}" is stored by warehouse location — select one before verifying this order.`,
+        );
+        return;
+      }
+    }
+
     // [ORDER-UPDATE-DEBUG] Raw product data exactly as currently held in
     // allProducts (i.e. straight from the API, before any resolution logic
     // runs), for every product in this order. Shows both the legacy
